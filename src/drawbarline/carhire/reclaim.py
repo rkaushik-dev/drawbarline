@@ -6,6 +6,9 @@ arrived with a broken wheel and sat four days in our rip track waiting on a
 part, those four days are the owner's problem and we reclaim them. If a
 government embargo shut the line and the car could not move, the same.
 
+The walk that finds a hold is the same walk that finds a car cycle, so it is
+the one in the events package rather than a second copy here.
+
 The rules are numbered and the numbers travel on the statement, because a
 connection disputing a reclaim disputes it by rule. So the reason is an
 enumeration carrying its rule number, not a free text note somebody typed.
@@ -25,9 +28,8 @@ from enum import Enum
 from drawbarline.carhire.accrual import hourly
 from drawbarline.carhire.rates import RateTable
 from drawbarline.clock import Interval
-from drawbarline.errors import EventError
 from drawbarline.events.kinds import EventKind
-from drawbarline.events.record import Event
+from drawbarline.events.spans import scan_pairs
 from drawbarline.events.stream import CarStream
 from drawbarline.fleet.car import Car
 from drawbarline.marks import CarMark
@@ -75,37 +77,19 @@ class Reclaim:
 
 
 def paired_spans(
-    stream: CarStream,
-    opens: EventKind,
-    closes: EventKind,
-    until: datetime,
+    stream: CarStream, opens: EventKind, closes: EventKind, until: datetime, what: str
 ) -> list[Interval]:
-    """Every stretch between an opening event and the closing one that follows it."""
-    found: list[Interval] = []
-    opened: Event | None = None
-    for event in stream:
-        if event.when > until:
-            break
-        if event.kind is opens:
-            if opened is not None:
-                raise EventError("that state was opened twice running", event=str(event))
-            opened = event
-        elif event.kind is closes:
-            if opened is None:
-                raise EventError("that state was closed without opening", event=str(event))
-            found.append(Interval(opened.when, event.when))
-            opened = None
-    if opened is not None:
-        found.append(Interval(opened.when, until))
-    return found
+    """The intervals between one kind of event and another, cut at the month end."""
+    pairs = scan_pairs(stream, frozenset({opens}), frozenset({closes}), until, what=what)
+    return [pair.interval for pair in pairs]
 
 
 def repair_holds(stream: CarStream, until: datetime) -> list[Interval]:
-    return paired_spans(stream, EventKind.BAD_ORDERED, EventKind.REPAIRED, until)
+    return paired_spans(stream, EventKind.BAD_ORDERED, EventKind.REPAIRED, until, "the bad order")
 
 
 def embargo_holds(stream: CarStream, until: datetime) -> list[Interval]:
-    return paired_spans(stream, EventKind.HELD, EventKind.FREED, until)
+    return paired_spans(stream, EventKind.HELD, EventKind.FREED, until, "the hold")
 
 
 def reclaims_for(

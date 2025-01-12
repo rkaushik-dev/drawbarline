@@ -124,8 +124,22 @@ def test_closing_a_state_that_was_never_opened_is_refused():
 
 def test_a_pair_of_kinds_can_be_asked_for_directly():
     stream = a_visit(at(10, 8, EventKind.HELD), at(12, 8, EventKind.FREED))
-    found = paired_spans(stream, EventKind.HELD, EventKind.FREED, JANUARY.end)
+    found = paired_spans(stream, EventKind.HELD, EventKind.FREED, JANUARY.end, "the hold")
     assert found[0].minutes == 2 * 24 * 60
+
+
+def test_the_label_a_hold_is_scanned_under_reaches_the_message():
+    stream = a_visit(at(10, 8, EventKind.HELD), at(11, 8, EventKind.HELD))
+    with pytest.raises(EventError) as caught:
+        embargo_holds(stream, JANUARY.end)
+    assert "the hold" in caught.value.message
+
+
+def test_a_bad_order_scans_under_its_own_label():
+    stream = a_visit(at(10, 8, EventKind.BAD_ORDERED), at(11, 8, EventKind.BAD_ORDERED))
+    with pytest.raises(EventError) as caught:
+        repair_holds(stream, JANUARY.end)
+    assert "the bad order" in caught.value.message
 
 
 def test_a_repair_hold_is_reclaimed_at_the_hourly_rate():

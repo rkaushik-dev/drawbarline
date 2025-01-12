@@ -4,7 +4,12 @@ from drawbarline.clock import Interval, utc
 from drawbarline.errors import EventError
 from drawbarline.events.kinds import EventKind
 from drawbarline.events.record import Event
-from drawbarline.events.spans import on_line_spans, on_track_spans, within
+from drawbarline.events.spans import (
+    on_line_spans,
+    on_track_spans,
+    scan_pairs,
+    within,
+)
 from drawbarline.events.stream import CarStream
 from drawbarline.marks import CarMark, ReportingMark
 
@@ -173,3 +178,87 @@ def test_a_span_that_touches_a_window_is_cut_down_to_it():
     spans = on_line_spans(stream, CUTOFF)
     week = Interval(utc(2025, 1, 20), utc(2025, 1, 27))
     assert within(spans, week)[0].interval == week
+
+
+def test_the_walk_pairs_an_opening_with_its_closing():
+    stream = stream_of(received(14), delivered(16))
+    pairs = list(
+        scan_pairs(
+            stream,
+            frozenset({EventKind.RECEIVED}),
+            frozenset({EventKind.DELIVERED}),
+            CUTOFF,
+        )
+    )
+    assert len(pairs) == 1
+    assert pairs[0].open is False
+
+
+def test_the_walk_leaves_the_last_pair_open_at_the_cut_off():
+    pairs = list(
+        scan_pairs(
+            stream_of(received(14)),
+            frozenset({EventKind.RECEIVED}),
+            frozenset({EventKind.DELIVERED}),
+            CUTOFF,
+        )
+    )
+    assert pairs[0].open is True
+    assert pairs[0].interval.end == CUTOFF
+
+
+def test_the_walk_gathers_the_kinds_it_is_told_to_watch():
+    stream = stream_of(received(14), placed(15), released(16), pulled(17))
+    pairs = list(
+        scan_pairs(
+            stream,
+            frozenset({EventKind.PLACED}),
+            frozenset({EventKind.PULLED}),
+            CUTOFF,
+            watch=frozenset({EventKind.RELEASED}),
+        )
+    )
+    assert pairs[0].first_inside(EventKind.RELEASED).when == utc(2025, 1, 16, 15)
+
+
+def test_the_walk_ignores_a_watched_kind_outside_a_pair():
+    stream = stream_of(received(14), released(15))
+    pairs = list(
+        scan_pairs(
+            stream,
+            frozenset({EventKind.PLACED}),
+            frozenset({EventKind.PULLED}),
+            CUTOFF,
+            watch=frozenset({EventKind.RELEASED}),
+        )
+    )
+    assert pairs == []
+
+
+def test_a_pair_with_nothing_watched_reports_nothing_inside():
+    stream = stream_of(received(14), placed(15), pulled(17))
+    pairs = list(
+        scan_pairs(
+            stream,
+            frozenset({EventKind.PLACED}),
+            frozenset({EventKind.PULLED}),
+            CUTOFF,
+            watch=frozenset({EventKind.RELEASED}),
+        )
+    )
+    assert pairs[0].first_inside(EventKind.RELEASED) is None
+
+
+def test_the_label_reaches_the_message_the_walk_raises():
+    stream = stream_of(received(14), delivered(16))
+    with pytest.raises(EventError) as caught:
+        list(
+            scan_pairs(
+                stream,
+                frozenset({EventKind.DELIVERED}),
+                frozenset({EventKind.RECEIVED}),
+                CUTOFF,
+                what="the delivery",
+            )
+        )
+    assert "the delivery" in caught.value.message
