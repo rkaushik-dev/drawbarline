@@ -2,11 +2,11 @@ from datetime import date
 
 import pytest
 
+from drawbarline.carhire.liability import liability
 from drawbarline.errors import SettlementError
 from drawbarline.marks import CarMark
 from drawbarline.money import Money
 from drawbarline.settlement.close import (
-    car_hire_for,
     close_month,
     detentions_in,
     invoices_from,
@@ -14,7 +14,18 @@ from drawbarline.settlement.close import (
 )
 from drawbarline.settlement.ledger import PostingKind
 from drawbarline.settlement.period import Period
-from support import CN, delivered, moved, placed, pulled, received, released
+from support import (
+    CN,
+    HOME,
+    bad_ordered,
+    delivered,
+    moved,
+    placed,
+    pulled,
+    received,
+    released,
+    repaired,
+)
 from support import books as a_books
 
 JANUARY = Period(2025, 1)
@@ -38,8 +49,12 @@ def run(books, **changed):
     return close_month(books, JANUARY, **fields)
 
 
+def car_hire(books):
+    return liability(books.fleet, books.log, books.rates, JANUARY.window, HOME)
+
+
 def test_the_car_hire_is_gathered_for_the_month():
-    found = car_hire_for(a_month(), JANUARY)
+    found = car_hire(a_month())
     assert found.cars() == [CarMark.parse("CN 400100")]
 
 
@@ -47,7 +62,7 @@ def test_our_own_car_raises_no_car_hire():
     books = a_books("DBL 104207")
     received(books.log, "DBL 104207", 6)
     delivered(books.log, "DBL 104207", 8)
-    assert car_hire_for(books, JANUARY).total() == Money(0)
+    assert car_hire(books).total() == Money(0)
 
 
 def test_the_close_posts_the_car_hire_to_the_road():
@@ -70,15 +85,10 @@ def test_closing_a_month_that_is_already_shut_is_refused():
 
 
 def test_a_bad_ordered_car_reclaims_its_hours():
-    from drawbarline.clock import utc
-    from drawbarline.events.kinds import EventKind
-    from drawbarline.events.record import Event
-
     books = a_books("CN 400100")
     received(books.log, "CN 400100", 6)
-    car = CarMark.parse("CN 400100")
-    books.log.record(Event(EventKind.BAD_ORDERED, car, utc(2025, 1, 8, 8), "ESC"))
-    books.log.record(Event(EventKind.REPAIRED, car, utc(2025, 1, 10, 8), "ESC"))
+    bad_ordered(books.log, "CN 400100", 8)
+    repaired(books.log, "CN 400100", 10)
     delivered(books.log, "CN 400100", 12)
     found = reclaims_in(books, JANUARY)
     assert len(found) == 1
@@ -86,28 +96,18 @@ def test_a_bad_ordered_car_reclaims_its_hours():
 
 
 def test_our_own_car_reclaims_nothing():
-    from drawbarline.clock import utc
-    from drawbarline.events.kinds import EventKind
-    from drawbarline.events.record import Event
-
     books = a_books("DBL 104207")
     received(books.log, "DBL 104207", 6)
-    car = CarMark.parse("DBL 104207")
-    books.log.record(Event(EventKind.BAD_ORDERED, car, utc(2025, 1, 8, 8), "ESC"))
-    books.log.record(Event(EventKind.REPAIRED, car, utc(2025, 1, 10, 8), "ESC"))
+    bad_ordered(books.log, "DBL 104207", 8)
+    repaired(books.log, "DBL 104207", 10)
     assert reclaims_in(books, JANUARY) == []
 
 
 def test_a_reclaim_is_posted_against_the_car_hire():
-    from drawbarline.clock import utc
-    from drawbarline.events.kinds import EventKind
-    from drawbarline.events.record import Event
-
     books = a_books("CN 400100")
     received(books.log, "CN 400100", 6)
-    car = CarMark.parse("CN 400100")
-    books.log.record(Event(EventKind.BAD_ORDERED, car, utc(2025, 1, 8, 8), "ESC"))
-    books.log.record(Event(EventKind.REPAIRED, car, utc(2025, 1, 10, 8), "ESC"))
+    bad_ordered(books.log, "CN 400100", 8)
+    repaired(books.log, "CN 400100", 10)
     delivered(books.log, "CN 400100", 12)
     run(books)
     kinds = books.ledger.account(CN).by_kind(JANUARY)
@@ -191,6 +191,6 @@ def test_a_month_with_nothing_in_it_closes_quietly():
 
 
 def test_running_the_same_month_twice_gives_the_same_car_hire():
-    first = car_hire_for(a_month(), JANUARY).total()
-    second = car_hire_for(a_month(), JANUARY).total()
+    first = car_hire(a_month()).total()
+    second = car_hire(a_month()).total()
     assert first == second

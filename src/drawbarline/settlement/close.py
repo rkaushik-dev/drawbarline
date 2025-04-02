@@ -8,6 +8,9 @@ and only then the month is shut.
 
 Nothing here computes anything. Every number comes from the module that owns
 it and this file decides what runs, in what order, and what gets posted where.
+The car hire run used to live here in a second copy that skipped unknown cars
+the same way the one in the car hire package does, and the two drifted apart
+within a month of each other being written.
 That separation is the reason a close can be run twice against the same books
 and produce the same answer, and the reason a disagreement can be chased into
 one module rather than into a thousand line procedure.
@@ -18,7 +21,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date
 
-from drawbarline.carhire.liability import Liability, charges_for
+from drawbarline.carhire.liability import Liability, liability
 from drawbarline.carhire.rates import RateTable
 from drawbarline.carhire.reclaim import Reclaim, reclaims_for
 from drawbarline.customers import CustomerRegister
@@ -75,21 +78,6 @@ class CloseResult:
     @property
     def demurrage(self) -> Money:
         return Money(sum(one.total.cents for one in self.invoices))
-
-
-def car_hire_for(books: Books, period: Period) -> Liability:
-    """Run the car hire for a month, skipping cars with no equipment record."""
-    found = Liability(period.window)
-    for car_mark in books.log.cars():
-        try:
-            charges = charges_for(
-                books.fleet, books.log, books.rates, car_mark, period.window, books.home
-            )
-        except UnknownCar:
-            continue
-        for charge in charges:
-            found.add(charge)
-    return found
 
 
 def reclaims_in(books: Books, period: Period) -> list[Reclaim]:
@@ -150,10 +138,10 @@ def close_month(
     """Work a month through in the order a clerk would, then shut it."""
     books.periods.require_open(period)
 
-    liability = car_hire_for(books, period)
-    result = CloseResult(period=period, liability=liability)
+    owed = liability(books.fleet, books.log, books.rates, period.window, books.home)
+    result = CloseResult(period=period, liability=owed)
 
-    for road, amount in liability.by_road().items():
+    for road, amount in owed.by_road().items():
         if amount.is_zero:
             continue
         books.ledger.post(Posting(road, period, PostingKind.CAR_HIRE, amount, period.last_day))
