@@ -14,6 +14,7 @@ dependencies = [
   # zoneinfo reads the operating system database, which windows does not have.
   # Every hour we bill is local time at a station, so this is not optional there.
   "tzdata==2025.1 ; sys_platform == 'win32'",
+  "SQLAlchemy==2.0.38",
 ]
 
 [project.optional-dependencies]
