@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 
 from drawbarline.errors import ConfigurationError
 from drawbarline.persistence.base import make_sessions
+from drawbarline.persistence.repositories.events import EventRepository
 from drawbarline.persistence.repositories.fleet import FleetRepository
 
 
@@ -40,6 +41,10 @@ class UnitOfWork:
     @property
     def fleet(self) -> FleetRepository:
         return FleetRepository(self.session)
+
+    @property
+    def events(self) -> EventRepository:
+        return EventRepository(self.session)
 
     @property
     def committed(self) -> bool:
