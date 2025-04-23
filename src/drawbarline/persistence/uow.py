@@ -23,6 +23,10 @@ from drawbarline.persistence.base import make_sessions
 from drawbarline.persistence.repositories.events import EventRepository
 from drawbarline.persistence.repositories.fleet import FleetRepository
 from drawbarline.persistence.repositories.rates import RateRepository
+from drawbarline.persistence.repositories.settlement import (
+    LedgerRepository,
+    PeriodRepository,
+)
 
 
 class UnitOfWork:
@@ -50,6 +54,14 @@ class UnitOfWork:
     @property
     def rates(self) -> RateRepository:
         return RateRepository(self.session)
+
+    @property
+    def ledger(self) -> LedgerRepository:
+        return LedgerRepository(self.session)
+
+    @property
+    def periods(self) -> PeriodRepository:
+        return PeriodRepository(self.session)
 
     @property
     def committed(self) -> bool:

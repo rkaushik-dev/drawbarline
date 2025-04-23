@@ -125,6 +125,15 @@ class Ledger:
 
     def post(self, posting: Posting) -> Posting:
         self._periods.require_open(posting.period)
+        return self.restore(posting)
+
+    def restore(self, posting: Posting) -> Posting:
+        """Put a posting back without asking whether the month is open.
+
+        Loading last year off the disk has to work, and last year is closed.
+        Only a loader calls this. Everything else calls post and gets the
+        check.
+        """
         account = self._accounts.get(posting.road)
         if account is None:
             account = Account(posting.road)

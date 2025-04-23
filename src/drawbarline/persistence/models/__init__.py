@@ -12,5 +12,19 @@ the test that walks the metadata is what stops one being forgotten.
 from drawbarline.persistence.models.events import EventRow
 from drawbarline.persistence.models.fleet import CarRow, LeaseRow, RetirementRow
 from drawbarline.persistence.models.rates import RateBandRow
+from drawbarline.persistence.models.settlement import (
+    ClosedPeriodRow,
+    PostingRow,
+    ReopeningRow,
+)
 
-__all__ = ["CarRow", "EventRow", "LeaseRow", "RateBandRow", "RetirementRow"]
+__all__ = [
+    "CarRow",
+    "ClosedPeriodRow",
+    "EventRow",
+    "LeaseRow",
+    "PostingRow",
+    "RateBandRow",
+    "ReopeningRow",
+    "RetirementRow",
+]
