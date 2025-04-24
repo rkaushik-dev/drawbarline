@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 
 from drawbarline.errors import ConfigurationError
 from drawbarline.persistence.base import make_sessions
+from drawbarline.persistence.numbering import Numbering
 from drawbarline.persistence.repositories.events import EventRepository
 from drawbarline.persistence.repositories.fleet import FleetRepository
 from drawbarline.persistence.repositories.rates import RateRepository
@@ -62,6 +63,10 @@ class UnitOfWork:
     @property
     def periods(self) -> PeriodRepository:
         return PeriodRepository(self.session)
+
+    @property
+    def numbering(self) -> Numbering:
+        return Numbering(self.session)
 
     @property
     def committed(self) -> bool:
