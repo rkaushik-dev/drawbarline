@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 
 import pytest
-from sqlalchemy import Column, Integer, Table, insert, select
+from sqlalchemy import Column, Integer, MetaData, Table, insert, select
 from sqlalchemy.exc import StatementError
 
 from drawbarline.clock import utc
@@ -10,7 +10,7 @@ from drawbarline.fleet.aar import CarTypeCode, MechanicalDesignation
 from drawbarline.marks import CarMark, ReportingMark
 from drawbarline.measure import Length
 from drawbarline.money import Money
-from drawbarline.persistence.base import Base, create_all, make_engine, opened, table_names
+from drawbarline.persistence.base import make_engine, opened, table_names
 from drawbarline.persistence.types import (
     CarMarkText,
     DesignationText,
@@ -23,9 +23,15 @@ from drawbarline.persistence.types import (
 )
 from drawbarline.weight import Weight
 
+# This table exists only to exercise the column types. It is deliberately on
+# its own metadata: a scratch table on the application metadata would be built
+# by create_all, absent from the migration, and would fail the check that the
+# two agree.
+SCRATCH = MetaData()
+
 SAMPLE = Table(
     "sample_of_every_type",
-    Base.metadata,
+    SCRATCH,
     Column("id", Integer, primary_key=True),
     Column("amount", MoneyCents),
     Column("weight", WeightPounds),
@@ -41,7 +47,7 @@ SAMPLE = Table(
 @pytest.fixture
 def engine():
     engine = make_engine()
-    create_all(engine)
+    SCRATCH.create_all(engine)
     return engine
 
 
@@ -130,5 +136,6 @@ def test_a_failed_session_rolls_back(engine):
         assert session.execute(select(SAMPLE)).all() == []
 
 
-def test_the_metadata_lists_its_tables():
-    assert "sample_of_every_type" in table_names()
+def test_the_scratch_table_stays_off_the_application_metadata():
+    assert "sample_of_every_type" not in table_names()
+    assert "car" in table_names()

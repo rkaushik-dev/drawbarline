@@ -15,6 +15,7 @@ dependencies = [
   # Every hour we bill is local time at a station, so this is not optional there.
   "tzdata==2025.1 ; sys_platform == 'win32'",
   "SQLAlchemy==2.0.38",
+  "alembic==1.14.1",
 ]
 
 [project.optional-dependencies]
@@ -43,6 +44,10 @@ select = ["E", "F", "I", "B", "UP", "C4", "SIM", "RET"]
 [tool.ruff.lint.per-file-ignores]
 # A test that an argument is refused has to evaluate the expression on its own.
 "tests/*" = ["B018"]
+# A migration is generated. Its imports are what the generator writes and a
+# check constraint reads as one line of sql, which is easier to compare with
+# the model it came from when it is not wrapped.
+"migrations/*" = ["E501", "F401"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["drawbarline"]
