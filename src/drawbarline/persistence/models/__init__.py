@@ -9,6 +9,7 @@ So every model module is imported here, the star imports are deliberate, and
 the test that walks the metadata is what stops one being forgotten.
 """
 
+from drawbarline.persistence.models.customers import IndustryRow, ShipperRow
 from drawbarline.persistence.models.events import EventRow
 from drawbarline.persistence.models.fleet import CarRow, LeaseRow, RetirementRow
 from drawbarline.persistence.models.numbering import CounterRow
@@ -24,9 +25,11 @@ __all__ = [
     "ClosedPeriodRow",
     "CounterRow",
     "EventRow",
+    "IndustryRow",
     "LeaseRow",
     "PostingRow",
     "RateBandRow",
     "ReopeningRow",
     "RetirementRow",
+    "ShipperRow",
 ]

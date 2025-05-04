@@ -57,8 +57,10 @@ def indexes_of(engine, table):
     return {index["name"] for index in inspect(engine).get_indexes(table)}
 
 
-def test_there_is_exactly_one_baseline():
-    assert [path.name for path in sorted(VERSIONS.glob("*.py"))] == ["0001_baseline.py"]
+def test_the_revisions_are_numbered_in_one_line():
+    names = [path.name for path in sorted(VERSIONS.glob("*.py"))]
+    assert names[0] == "0001_baseline.py"
+    assert [name[:4] for name in names] == [f"{n + 1:04d}" for n in range(len(names))]
 
 
 def test_the_migration_builds_every_table_the_models_declare(migrated):
