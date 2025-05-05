@@ -19,8 +19,14 @@ from drawbarline.persistence.models.settlement import (
     PostingRow,
     ReopeningRow,
 )
+from drawbarline.persistence.models.tariffs import (
+    AverageAgreementRow,
+    TariffRow,
+    TariffStepRow,
+)
 
 __all__ = [
+    "AverageAgreementRow",
     "CarRow",
     "ClosedPeriodRow",
     "CounterRow",
@@ -32,4 +38,6 @@ __all__ = [
     "ReopeningRow",
     "RetirementRow",
     "ShipperRow",
+    "TariffRow",
+    "TariffStepRow",
 ]

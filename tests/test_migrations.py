@@ -30,15 +30,17 @@ def alembic_config(url: str) -> Config:
     return config
 
 
-@pytest.fixture
-def migrated(tmp_path):
+@pytest.fixture(scope="module")
+def migrated(tmp_path_factory):
+    tmp_path = tmp_path_factory.mktemp("migrated")
     url = f"sqlite+pysqlite:///{tmp_path / 'migrated.db'}"
     command.upgrade(alembic_config(url), "head")
     return make_engine(url)
 
 
-@pytest.fixture
-def built(tmp_path):
+@pytest.fixture(scope="module")
+def built(tmp_path_factory):
+    tmp_path = tmp_path_factory.mktemp("built")
     engine = make_engine(f"sqlite+pysqlite:///{tmp_path / 'built.db'}")
     create_all(engine)
     return engine

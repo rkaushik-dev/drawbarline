@@ -29,6 +29,7 @@ from drawbarline.persistence.repositories.settlement import (
     LedgerRepository,
     PeriodRepository,
 )
+from drawbarline.persistence.repositories.tariffs import TariffRepository
 
 
 class UnitOfWork:
@@ -72,6 +73,10 @@ class UnitOfWork:
     @property
     def customers(self) -> CustomerRepository:
         return CustomerRepository(self.session)
+
+    @property
+    def tariffs(self) -> TariffRepository:
+        return TariffRepository(self.session)
 
     @property
     def committed(self) -> bool:
