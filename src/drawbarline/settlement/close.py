@@ -65,7 +65,11 @@ class CloseResult:
     detentions: list[Detention] = field(default_factory=list)
     invoices: list[Invoice] = field(default_factory=list)
     statements: list[Statement] = field(default_factory=list)
-    postings: int = 0
+    postings: list[Posting] = field(default_factory=list)
+
+    @property
+    def posted(self) -> int:
+        return len(self.postings)
 
     @property
     def car_hire(self) -> Money:
@@ -141,21 +145,23 @@ def close_month(
     owed = liability(books.fleet, books.log, books.rates, period.window, books.home)
     result = CloseResult(period=period, liability=owed)
 
-    for road, amount in owed.by_road().items():
+    for road, amount in sorted(owed.by_road().items(), key=lambda pair: str(pair[0])):
         if amount.is_zero:
             continue
-        books.ledger.post(Posting(road, period, PostingKind.CAR_HIRE, amount, period.last_day))
-        result.postings += 1
+        result.postings.append(
+            books.ledger.post(Posting(road, period, PostingKind.CAR_HIRE, amount, period.last_day))
+        )
 
     result.reclaims = reclaims_in(books, period)
     for reclaim in result.reclaims:
         if reclaim.amount.is_zero:
             continue
         road = books.fleet.ownership(reclaim.car).holder_on(period.last_day)
-        books.ledger.post(
-            Posting(road, period, PostingKind.RECLAIM, -reclaim.amount, period.last_day)
+        result.postings.append(
+            books.ledger.post(
+                Posting(road, period, PostingKind.RECLAIM, -reclaim.amount, period.last_day)
+            )
         )
-        result.postings += 1
 
     result.detentions = detentions_in(books, period)
     result.invoices = invoices_from(books, period, result.detentions, first_invoice)

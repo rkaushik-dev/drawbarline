@@ -179,13 +179,13 @@ def test_the_result_reports_the_three_totals():
 
 
 def test_the_result_counts_what_it_posted():
-    assert run(a_month()).postings == 1
+    assert run(a_month()).posted == 1
 
 
 def test_a_month_with_nothing_in_it_closes_quietly():
     books = a_books()
     result = run(books)
-    assert result.postings == 0
+    assert result.posted == 0
     assert result.statements == []
     assert books.periods.is_open(JANUARY) is False
 
