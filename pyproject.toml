@@ -16,7 +16,11 @@ dependencies = [
   "tzdata==2025.1 ; sys_platform == 'win32'",
   "SQLAlchemy==2.0.38",
   "alembic==1.14.1",
+  "click==8.1.8",
 ]
+
+[project.scripts]
+drawbarline = "drawbarline.cli:run"
 
 [project.optional-dependencies]
 dev = [
