@@ -6,8 +6,10 @@ same trap the model package has and it is solved the same way.
 """
 
 from drawbarline.cli import (
+    close,  # noqa: F401  registers the close commands
     events,  # noqa: F401  registers the events group
     fleet,  # noqa: F401  registers the fleet group
+    reference,  # noqa: F401  registers the reference group
 )
 from drawbarline.cli.main import cli, run
 
