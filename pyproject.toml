@@ -17,6 +17,9 @@ dependencies = [
   "SQLAlchemy==2.0.38",
   "alembic==1.14.1",
   "click==8.1.8",
+  "fastapi==0.115.8",
+  "pydantic==2.10.6",
+  "uvicorn[standard]==0.34.0",
 ]
 
 [project.scripts]
@@ -25,6 +28,7 @@ drawbarline = "drawbarline.cli:run"
 [project.optional-dependencies]
 dev = [
   "pytest==8.3.4",
+  "httpx==0.28.1",
   "ruff==0.9.6",
   "mypy==1.15.0",
 ]
@@ -36,6 +40,11 @@ where = ["src"]
 testpaths = ["tests"]
 pythonpath = ["src", "tests"]
 addopts = "-q"
+filterwarnings = [
+  # Starlette's test client still reaches for an anyio alias anyio has
+  # deprecated. Not ours to fix and not worth reading on every run.
+  "ignore:The anyio.abc.BlockingPortal alias is deprecated:DeprecationWarning",
+]
 
 [tool.ruff]
 line-length = 100
@@ -47,7 +56,10 @@ select = ["E", "F", "I", "B", "UP", "C4", "SIM", "RET"]
 
 [tool.ruff.lint.per-file-ignores]
 # A test that an argument is refused has to evaluate the expression on its own.
-"tests/*" = ["B018"]
+"tests/*" = ["B018", "B008"]
+# Routes declare their query parameters and dependencies as call defaults.
+# That is the framework calling convention and there is no other way to write it.
+"src/drawbarline/api/*" = ["B008"]
 # A migration is generated. Its imports are what the generator writes and a
 # check constraint reads as one line of sql, which is easier to compare with
 # the model it came from when it is not wrapped.

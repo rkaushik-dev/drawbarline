@@ -20,6 +20,7 @@ from typing import Any
 
 from sqlalchemy import Engine, create_engine, event
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from drawbarline.errors import ConfigurationError
 
@@ -34,7 +35,14 @@ def make_engine(url: str = IN_MEMORY, *, echo: bool = False) -> Engine:
     """Build an engine with the settings this application needs, not the defaults."""
     if not url.strip():
         raise ConfigurationError("a database url is required")
-    engine = create_engine(url, echo=echo, future=True)
+    settings: dict[str, Any] = {"echo": echo, "future": True}
+    if url == IN_MEMORY:
+        # A memory database lives inside its connection. The default pool opens
+        # a new one per checkout, so the schema built on the first connection is
+        # gone by the second and every read finds an empty database.
+        settings["poolclass"] = StaticPool
+        settings["connect_args"] = {"check_same_thread": False}
+    engine = create_engine(url, **settings)
     if url.startswith("sqlite"):
         _enforce_foreign_keys(engine)
     return engine
