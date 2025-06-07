@@ -18,6 +18,9 @@ from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
+from drawbarline.clock import ClockError
+from drawbarline.customers import CustomerError
+from drawbarline.days import CalendarError
 from drawbarline.errors import (
     BillingError,
     ConfigurationError,
@@ -31,22 +34,50 @@ from drawbarline.errors import (
     TariffError,
     UnknownCar,
 )
+from drawbarline.fleet.aar import EquipmentError
+from drawbarline.fleet.car import CarRecordError
+from drawbarline.fleet.ownership import OwnershipError
+from drawbarline.fleet.stencil import StencilError
+from drawbarline.lading import LadingError
+from drawbarline.measure import MeasureError
+from drawbarline.mileage import MileageError
+from drawbarline.money import MoneyError
+from drawbarline.network import NetworkError
+from drawbarline.waybill import WaybillError
+from drawbarline.weight import WeightError
 
 NOT_FOUND = 404
 CONFLICT = 409
 UNPROCESSABLE = 422
 BAD_REQUEST = 400
 
+# Every error class the domain raises has a line here. A class without one
+# falls back to a bad request, which is the reading somebody forgot rather
+# than the reading somebody chose.
 STATUS_FOR: dict[type[DrawbarlineError], int] = {
     UnknownCar: NOT_FOUND,
+    NetworkError: NOT_FOUND,
+    CustomerError: NOT_FOUND,
     DuplicateCar: CONFLICT,
     RegistryError: CONFLICT,
     EventError: CONFLICT,
     SettlementError: CONFLICT,
+    OwnershipError: CONFLICT,
     TariffError: UNPROCESSABLE,
     RateError: UNPROCESSABLE,
     BillingError: UNPROCESSABLE,
     MarkError: UNPROCESSABLE,
+    CarRecordError: UNPROCESSABLE,
+    EquipmentError: UNPROCESSABLE,
+    StencilError: UNPROCESSABLE,
+    LadingError: UNPROCESSABLE,
+    WaybillError: UNPROCESSABLE,
+    MeasureError: UNPROCESSABLE,
+    WeightError: UNPROCESSABLE,
+    MoneyError: UNPROCESSABLE,
+    MileageError: UNPROCESSABLE,
+    ClockError: UNPROCESSABLE,
+    CalendarError: UNPROCESSABLE,
     ConfigurationError: BAD_REQUEST,
 }
 

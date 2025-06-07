@@ -105,3 +105,28 @@ def _request_for(app):
     from fastapi import Request
 
     return Request({"type": "http", "app": app, "headers": []})
+
+
+def test_every_error_class_the_domain_raises_has_a_status():
+    """A class nobody decided on falls back to four hundred, which hides it."""
+    import importlib
+    import pkgutil
+
+    import drawbarline
+    from drawbarline.api.errors import STATUS_FOR
+
+    found = set()
+    for module in pkgutil.walk_packages(drawbarline.__path__, "drawbarline."):
+        if ".api." in module.name or module.name.endswith(".api"):
+            continue
+        loaded = importlib.import_module(module.name)
+        for value in vars(loaded).values():
+            if (
+                isinstance(value, type)
+                and issubclass(value, DrawbarlineError)
+                and value is not DrawbarlineError
+                and value.__module__ == module.name
+            ):
+                found.add(value)
+    undecided = {one.__name__ for one in found if one not in STATUS_FOR}
+    assert undecided == set()
