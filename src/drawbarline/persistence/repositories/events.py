@@ -6,7 +6,10 @@ cannot tell whether the events came out of a database or out of a test.
 
 Writing refuses a duplicate before the database does, so the message says what
 happened rather than naming a constraint. The constraint is still there, and
-it is what catches two clerks keying the same sheet at the same moment.
+it is what catches two clerks keying the same sheet at the same moment. The
+same goes for an event against a car with no equipment record: the foreign key
+would catch it, but a foreign key violation reaches a caller as a five hundred
+and tells them nothing.
 """
 
 from __future__ import annotations
@@ -17,13 +20,14 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from drawbarline.clock import Interval
-from drawbarline.errors import EventError
+from drawbarline.errors import EventError, UnknownCar
 from drawbarline.events.kinds import EventKind
 from drawbarline.events.record import Event
 from drawbarline.events.stream import CarStream, EventLog
 from drawbarline.marks import CarMark
 from drawbarline.persistence.mappers.events import event_from_row, row_from_event
 from drawbarline.persistence.models.events import EventRow
+from drawbarline.persistence.models.fleet import CarRow
 
 
 class EventRepository:
@@ -33,6 +37,8 @@ class EventRepository:
         self.session = session
 
     def record(self, event: Event) -> Event:
+        if self.session.get(CarRow, event.car) is None:
+            raise UnknownCar("no record of that car", car=str(event.car))
         standing = self.session.execute(
             select(EventRow).where(
                 EventRow.car_mark == event.car,

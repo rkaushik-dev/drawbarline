@@ -91,9 +91,11 @@ def test_the_table_refuses_a_duplicate_the_repository_did_not_see(engine):
         work.commit()
 
 
-def test_an_event_against_a_car_nobody_filed_is_refused(engine):
+def test_the_table_refuses_an_event_the_repository_did_not_see(engine):
+    from drawbarline.persistence.mappers.events import row_from_event
+
     with pytest.raises(IntegrityError), UnitOfWork(engine) as work:
-        work.events.record(received(car=CarMark.parse("WC 000001")))
+        work.session.add(row_from_event(received(car=CarMark.parse("WC 000001"))))
         work.commit()
 
 
@@ -198,3 +200,10 @@ def test_a_movement_of_no_distance_is_refused_by_the_table(engine):
             )
         )
         work.commit()
+
+
+def test_an_event_against_a_car_with_no_record_is_refused_before_the_table(engine):
+    from drawbarline.errors import UnknownCar
+
+    with UnitOfWork(engine) as work, pytest.raises(UnknownCar):
+        work.events.record(received(car=CarMark.parse("WC 000001")))
