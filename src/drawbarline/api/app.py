@@ -18,7 +18,7 @@ from sqlalchemy import Engine
 from drawbarline import __version__
 from drawbarline.api.deps import ENGINE_KEY, read_only
 from drawbarline.api.errors import install
-from drawbarline.api.routes import events, fleet
+from drawbarline.api.routes import events, fleet, settlement
 from drawbarline.persistence.uow import UnitOfWork
 
 TITLE = "drawbarline"
@@ -32,6 +32,7 @@ def make_app(engine: Engine) -> FastAPI:
     install(app)
     app.include_router(fleet.router)
     app.include_router(events.router)
+    app.include_router(settlement.router)
 
     @app.get("/health", tags=["service"])
     def health() -> dict[str, str]:
