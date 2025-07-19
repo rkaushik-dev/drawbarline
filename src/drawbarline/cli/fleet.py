@@ -8,20 +8,15 @@ back as a refusal naming the argument.
 
 from __future__ import annotations
 
-from datetime import datetime
-
 import click
 
 from drawbarline.cli.main import Context, cli, pass_context
+from drawbarline.cli.readers import a_date
 from drawbarline.fleet.aar import CarTypeCode, MechanicalDesignation
 from drawbarline.fleet.car import Car
 from drawbarline.marks import CarMark
 from drawbarline.measure import Length
 from drawbarline.weight import Weight
-
-
-def a_date(text: str):
-    return datetime.strptime(text, "%Y-%m-%d").date()
 
 
 @cli.group()

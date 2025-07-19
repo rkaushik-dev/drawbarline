@@ -8,31 +8,19 @@ bad line halfway down loads nothing.
 
 from __future__ import annotations
 
-import csv
-from datetime import datetime
 from pathlib import Path
 
 import click
 
 from drawbarline.carhire.rates import Band, Rate
 from drawbarline.cli.main import Context, cli, pass_context
+from drawbarline.cli.readers import SHEET, a_date, rows_of
 from drawbarline.customers import WEEKDAYS, Industry, Shipper
 from drawbarline.demurrage.tariff import Step, Tariff
 from drawbarline.fleet.aar import CarTypeCode
 
-SHEET = click.Path(exists=True, dir_okay=False, path_type=Path)
-
 # What a track is switched on when the filing does not say otherwise.
 WORKING_WEEK = frozenset(WEEKDAYS[:5])
-
-
-def rows_of(path: Path) -> list[dict[str, str]]:
-    with path.open(newline="", encoding="utf-8") as handle:
-        return list(csv.DictReader(handle))
-
-
-def a_date(text: str):
-    return datetime.strptime(text.strip(), "%Y-%m-%d").date()
 
 
 @cli.group()

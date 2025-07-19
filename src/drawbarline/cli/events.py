@@ -11,28 +11,19 @@ as a file and keying it by hand is not a plan.
 
 from __future__ import annotations
 
-import csv
-from datetime import datetime
 from pathlib import Path
 
 import click
 
 from drawbarline.cli.main import Context, cli, pass_context
-from drawbarline.clock import to_utc
+from drawbarline.cli.readers import SHEET, a_moment, require_columns, rows_of
 from drawbarline.errors import EventError
 from drawbarline.events.kinds import kind_named
 from drawbarline.events.record import Event
 from drawbarline.events.replay import replay
 from drawbarline.marks import CarMark, ReportingMark
-from drawbarline.reference import drawbar_line
 
 FIELDS = ("car", "kind", "when", "station", "road", "industry", "waybill", "tenths")
-
-
-def a_moment(station_code: str, text: str, *, second_pass: bool = False):
-    """Read a local clock reading at a station as a moment."""
-    station = drawbar_line().station(station_code)
-    return to_utc(station, datetime.strptime(text, "%Y-%m-%d %H:%M"), second_pass=second_pass)
 
 
 def build(row: dict[str, str]) -> Event:
@@ -97,15 +88,12 @@ def record(
 
 
 @events.command("load")
-@click.argument("sheet", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+@click.argument("sheet", type=SHEET)
 @pass_context
 def load(ctx: Context, sheet: Path) -> None:
     """Load a day of interchange out of a comma separated sheet."""
-    with sheet.open(newline="", encoding="utf-8") as handle:
-        rows = list(csv.DictReader(handle))
-    missing = {"car", "kind", "when", "station"} - set(rows[0] if rows else {})
-    if missing:
-        raise click.ClickException(f"the sheet is missing {sorted(missing)}")
+    rows = rows_of(sheet)
+    require_columns(rows, {"car", "kind", "when", "station"}, sheet.name)
 
     taken = 0
     with ctx.work() as work:

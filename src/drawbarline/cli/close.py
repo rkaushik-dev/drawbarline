@@ -12,31 +12,13 @@ worth having.
 
 from __future__ import annotations
 
-from datetime import datetime
-
 import click
 
 from drawbarline.cli.main import Context, cli, pass_context
+from drawbarline.cli.readers import a_date, a_month
 from drawbarline.marks import ReportingMark
 from drawbarline.service import run_close
-from drawbarline.settlement.period import Period
 from drawbarline.settlement.statement import cut
-
-
-def a_month(text: str) -> Period:
-    """Read 2025-01 as a period."""
-    try:
-        found = datetime.strptime(text.strip(), "%Y-%m")
-    except ValueError as bad:
-        raise click.ClickException(f"{text!r} is not a month, write it as 2025-01") from bad
-    return Period(found.year, found.month)
-
-
-def a_date(text: str):
-    try:
-        return datetime.strptime(text.strip(), "%Y-%m-%d").date()
-    except ValueError as bad:
-        raise click.ClickException(f"{text!r} is not a date") from bad
 
 
 @cli.command("close")
