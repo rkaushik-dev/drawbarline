@@ -30,6 +30,7 @@ from drawbarline.persistence.repositories.settlement import (
     PeriodRepository,
 )
 from drawbarline.persistence.repositories.tariffs import TariffRepository
+from drawbarline.persistence.repositories.waybills import WaybillRepository
 
 
 class UnitOfWork:
@@ -77,6 +78,10 @@ class UnitOfWork:
     @property
     def tariffs(self) -> TariffRepository:
         return TariffRepository(self.session)
+
+    @property
+    def waybills(self) -> WaybillRepository:
+        return WaybillRepository(self.session)
 
     @property
     def committed(self) -> bool:

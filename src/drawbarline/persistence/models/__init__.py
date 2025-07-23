@@ -24,6 +24,7 @@ from drawbarline.persistence.models.tariffs import (
     TariffRow,
     TariffStepRow,
 )
+from drawbarline.persistence.models.waybill import RouteStopRow, WaybillRow
 
 __all__ = [
     "AverageAgreementRow",
@@ -37,7 +38,9 @@ __all__ = [
     "RateBandRow",
     "ReopeningRow",
     "RetirementRow",
+    "RouteStopRow",
     "ShipperRow",
     "TariffRow",
     "TariffStepRow",
+    "WaybillRow",
 ]
