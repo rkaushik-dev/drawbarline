@@ -10,6 +10,7 @@ from drawbarline.cli import (
     events,  # noqa: F401  registers the events group
     fleet,  # noqa: F401  registers the fleet group
     reference,  # noqa: F401  registers the reference group
+    reports,  # noqa: F401  registers the report group
 )
 from drawbarline.cli.main import cli, run
 
