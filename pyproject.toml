@@ -29,6 +29,7 @@ drawbarline = "drawbarline.cli:run"
 dev = [
   "pytest==8.3.4",
   "httpx==0.28.1",
+  "pytest-xdist==3.6.1",
   "ruff==0.9.6",
   "mypy==1.15.0",
 ]
@@ -39,7 +40,7 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src", "tests"]
-addopts = "-q"
+addopts = "-q -n auto --dist loadfile"
 filterwarnings = [
   # Starlette's test client still reaches for an anyio alias anyio has
   # deprecated. Not ours to fix and not worth reading on every run.

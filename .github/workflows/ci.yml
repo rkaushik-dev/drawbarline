@@ -54,6 +54,20 @@ jobs:
       - run: python -m pip install -e ".[dev]"
       - run: pytest
 
+  migrations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: python -m pip install -e ".[dev]"
+      # The models and the migration have to describe the same schema, and the
+      # test that proves it is worth its own job because it is the check that
+      # fails on somebody else's machine rather than on the one that changed.
+      - run: pytest tests/test_migrations.py -p no:randomly
+
   package:
     runs-on: ubuntu-latest
     steps:
