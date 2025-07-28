@@ -21,6 +21,7 @@ from fastapi.responses import JSONResponse
 from drawbarline.clock import ClockError
 from drawbarline.customers import CustomerError
 from drawbarline.days import CalendarError
+from drawbarline.embargo import EmbargoError
 from drawbarline.errors import (
     BillingError,
     ConfigurationError,
@@ -63,6 +64,7 @@ STATUS_FOR: dict[type[DrawbarlineError], int] = {
     EventError: CONFLICT,
     SettlementError: CONFLICT,
     OwnershipError: CONFLICT,
+    EmbargoError: CONFLICT,
     TariffError: UNPROCESSABLE,
     RateError: UNPROCESSABLE,
     BillingError: UNPROCESSABLE,
