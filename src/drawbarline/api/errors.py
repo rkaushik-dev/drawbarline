@@ -44,6 +44,7 @@ from drawbarline.measure import MeasureError
 from drawbarline.mileage import MileageError
 from drawbarline.money import MoneyError
 from drawbarline.network import NetworkError
+from drawbarline.switching import SwitchError
 from drawbarline.waybill import WaybillError
 from drawbarline.weight import WeightError
 
@@ -65,6 +66,7 @@ STATUS_FOR: dict[type[DrawbarlineError], int] = {
     SettlementError: CONFLICT,
     OwnershipError: CONFLICT,
     EmbargoError: CONFLICT,
+    SwitchError: CONFLICT,
     TariffError: UNPROCESSABLE,
     RateError: UNPROCESSABLE,
     BillingError: UNPROCESSABLE,
