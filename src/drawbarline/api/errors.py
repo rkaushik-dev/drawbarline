@@ -39,6 +39,7 @@ from drawbarline.fleet.aar import EquipmentError
 from drawbarline.fleet.car import CarRecordError
 from drawbarline.fleet.ownership import OwnershipError
 from drawbarline.fleet.stencil import StencilError
+from drawbarline.interchange.sheet import SheetError
 from drawbarline.lading import LadingError
 from drawbarline.measure import MeasureError
 from drawbarline.mileage import MileageError
@@ -77,6 +78,7 @@ STATUS_FOR: dict[type[DrawbarlineError], int] = {
     EquipmentError: UNPROCESSABLE,
     StencilError: UNPROCESSABLE,
     LadingError: UNPROCESSABLE,
+    SheetError: UNPROCESSABLE,
     WaybillError: UNPROCESSABLE,
     MeasureError: UNPROCESSABLE,
     WeightError: UNPROCESSABLE,
