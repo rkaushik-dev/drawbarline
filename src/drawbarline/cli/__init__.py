@@ -9,6 +9,7 @@ from drawbarline.cli import (
     close,  # noqa: F401  registers the close commands
     events,  # noqa: F401  registers the events group
     fleet,  # noqa: F401  registers the fleet group
+    interchange,  # noqa: F401  registers the interchange group
     reference,  # noqa: F401  registers the reference group
     reports,  # noqa: F401  registers the report group
 )
