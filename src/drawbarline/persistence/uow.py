@@ -25,6 +25,7 @@ from drawbarline.persistence.repositories.customers import CustomerRepository
 from drawbarline.persistence.repositories.events import EventRepository
 from drawbarline.persistence.repositories.fleet import FleetRepository
 from drawbarline.persistence.repositories.rates import RateRepository
+from drawbarline.persistence.repositories.repairs import RepairPricingRepository
 from drawbarline.persistence.repositories.settlement import (
     LedgerRepository,
     PeriodRepository,
@@ -82,6 +83,10 @@ class UnitOfWork:
     @property
     def waybills(self) -> WaybillRepository:
         return WaybillRepository(self.session)
+
+    @property
+    def repair_pricing(self) -> RepairPricingRepository:
+        return RepairPricingRepository(self.session)
 
     @property
     def committed(self) -> bool:

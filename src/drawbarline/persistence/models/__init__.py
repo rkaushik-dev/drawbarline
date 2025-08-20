@@ -14,6 +14,11 @@ from drawbarline.persistence.models.events import EventRow
 from drawbarline.persistence.models.fleet import CarRow, LeaseRow, RetirementRow
 from drawbarline.persistence.models.numbering import CounterRow
 from drawbarline.persistence.models.rates import RateBandRow
+from drawbarline.persistence.models.repairs import (
+    DepreciationRow,
+    LaborRateRow,
+    PriceLineRow,
+)
 from drawbarline.persistence.models.settlement import (
     ClosedPeriodRow,
     PostingRow,
@@ -31,10 +36,13 @@ __all__ = [
     "CarRow",
     "ClosedPeriodRow",
     "CounterRow",
+    "DepreciationRow",
     "EventRow",
     "IndustryRow",
     "LeaseRow",
+    "LaborRateRow",
     "PostingRow",
+    "PriceLineRow",
     "RateBandRow",
     "ReopeningRow",
     "RetirementRow",
