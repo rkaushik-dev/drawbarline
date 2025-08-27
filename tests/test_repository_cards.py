@@ -237,3 +237,16 @@ def test_the_repository_counts_its_cards(engine):
         work.commit()
     with UnitOfWork(engine) as work:
         assert len(work.cards) == 2
+
+
+def test_an_exception_out_of_time_is_refused_at_the_repository(filed):
+    with UnitOfWork(filed) as work, pytest.raises(BillingError):
+        work.cards.take_exception(an_objection(filed_on=date(2025, 6, 3)))
+
+
+def test_an_exception_on_the_last_day_is_in_time(filed):
+    with UnitOfWork(filed) as work:
+        work.cards.take_exception(an_objection(filed_on=date(2025, 4, 14)))
+        work.commit()
+    with UnitOfWork(filed) as work:
+        assert len(work.cards.open_objections()) == 1

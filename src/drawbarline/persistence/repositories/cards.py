@@ -5,9 +5,10 @@ once. Both of those are enforced here as well as by the table, because the
 message a clerk needs is that the card is already on file, not that a unique
 constraint fired.
 
-The domain objects come back whole, so the ninety day filing clock and the
-rule that only the last step of a tariff runs to the end are enforced by the
-same code whether the data came out of the database or out of a test.
+The ninety day filing clock is enforced here as well, against the card in the
+database rather than one held in memory. An exception filed late through this
+path would otherwise be accepted and the register would only notice when
+somebody loaded the whole thing.
 """
 
 from __future__ import annotations
@@ -28,7 +29,13 @@ from drawbarline.persistence.models.cards import (
 from drawbarline.persistence.models.fleet import CarRow
 from drawbarline.repairs.card import Defect, RepairCard
 from drawbarline.repairs.codes import JobCode, Responsibility, WhyMade
-from drawbarline.repairs.objection import Ground, Objection, Outcome, Resolution
+from drawbarline.repairs.objection import (
+    Ground,
+    Objection,
+    Outcome,
+    Resolution,
+    must_file_by,
+)
 
 
 def defect_from_row(row: DefectRow) -> Defect:
@@ -146,6 +153,12 @@ class CardRepository:
         card = self.get(objection.card_number)
         if objection.line >= len(card.defects):
             raise BillingError("that card has no such line", card=card.number, line=objection.line)
+        if objection.filed_on > must_file_by(card.on):
+            raise BillingError(
+                "that exception is out of time",
+                card=card.number,
+                by=str(must_file_by(card.on)),
+            )
         if self._objection_row(objection.card_number, objection.line) is not None:
             raise BillingError(
                 "that line is already under exception",

@@ -11,6 +11,7 @@ from drawbarline.cli import (
     fleet,  # noqa: F401  registers the fleet group
     interchange,  # noqa: F401  registers the interchange group
     reference,  # noqa: F401  registers the reference group
+    repairs,  # noqa: F401  registers the repairs group
     reports,  # noqa: F401  registers the report group
 )
 from drawbarline.cli.main import cli, run
