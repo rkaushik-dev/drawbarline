@@ -5,6 +5,10 @@ work. Nothing here holds a connection between commands, because the office
 runs these out of a scheduler one at a time and a long lived connection to a
 file on a share is a way to lose a month.
 
+Settings come from the environment and are overridden by the options, which is
+the order anybody expects. The database option exists because it is the one
+setting a clerk changes between two commands.
+
 Every command that writes commits at the end and only at the end. A command
 that raises leaves the database exactly as it found it, and the error the user
 sees is the domain error with its context, not a traceback.
@@ -13,17 +17,19 @@ sees is the domain error with its context, not a traceback.
 from __future__ import annotations
 
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 import click
 
 from drawbarline import __version__
+from drawbarline.config import LEVELS, Settings, from_environment
+from drawbarline.config import names as config_names
 from drawbarline.errors import DrawbarlineError
+from drawbarline.logs import configure
 from drawbarline.persistence.base import create_all, make_engine
 from drawbarline.persistence.numbering import SERIES
 from drawbarline.persistence.uow import UnitOfWork
-
-DEFAULT_DATABASE = "drawbarline.db"
 
 STARTING_NUMBERS = {
     "demurrage_invoice": 5001,
@@ -33,16 +39,16 @@ STARTING_NUMBERS = {
 }
 
 
-def url_for(database: str) -> str:
-    return f"sqlite+pysqlite:///{database}"
-
-
 class Context:
     """What every command needs and nothing more."""
 
-    def __init__(self, database: str) -> None:
-        self.database = database
-        self.engine = make_engine(url_for(database))
+    def __init__(self, settings: Settings) -> None:
+        self.settings = settings
+        self.engine = make_engine(settings.url, echo=settings.echo_sql)
+
+    @property
+    def database(self) -> str:
+        return self.settings.database
 
     def work(self) -> UnitOfWork:
         return UnitOfWork(self.engine)
@@ -55,14 +61,25 @@ pass_context = click.make_pass_decorator(Context)
 @click.version_option(__version__)
 @click.option(
     "--database",
-    default=DEFAULT_DATABASE,
-    show_default=True,
-    help="The sqlite file the books live in.",
+    default=None,
+    help="The sqlite file the books live in. Read from the environment otherwise.",
+)
+@click.option(
+    "--log-level",
+    default=None,
+    type=click.Choice(LEVELS),
+    help="How much to say. Read from the environment otherwise.",
 )
 @click.pass_context
-def cli(ctx: click.Context, database: str) -> None:
+def cli(ctx: click.Context, database: str | None, log_level: str | None) -> None:
     """Car hire, demurrage and interchange settlement."""
-    ctx.obj = Context(database)
+    settings = from_environment()
+    if database:
+        settings = settings.with_database(database)
+    if log_level:
+        settings = replace(settings, log_level=log_level)
+    configure(settings)
+    ctx.obj = Context(settings)
 
 
 @cli.command()
@@ -77,6 +94,20 @@ def init(ctx: Context) -> None:
             work.numbering.start(name, STARTING_NUMBERS[name])
         work.commit()
     click.echo(f"built {ctx.database}")
+
+
+@cli.command()
+@pass_context
+def settings(ctx: Context) -> None:
+    """What this process thinks it is, and where each setting can be set."""
+    click.echo(f"database   {ctx.settings.database}")
+    click.echo(f"url        {ctx.settings.url}")
+    click.echo(f"home road  {ctx.settings.home_road}")
+    click.echo(f"log level  {ctx.settings.log_level}")
+    click.echo(f"echo sql   {ctx.settings.echo_sql}")
+    click.echo("")
+    for name in config_names():
+        click.echo(f"  {name}")
 
 
 @cli.command()

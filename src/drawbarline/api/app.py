@@ -2,8 +2,9 @@
 
 The engine is handed in rather than built here, so a test stands the whole
 thing up against a database in a temporary directory and the office stands it
-up against the file on the share. Nothing reads an environment variable below
-this line.
+up against the file on the share. Nothing below this line reads an environment
+variable. :func:`app_from` is the one that does, and it is what a server
+process calls.
 
 There is no authentication on it. The general office network is the boundary
 and this application sits behind it, which is a decision worth writing down
@@ -19,6 +20,9 @@ from drawbarline import __version__
 from drawbarline.api.deps import ENGINE_KEY, read_only
 from drawbarline.api.errors import install
 from drawbarline.api.routes import events, fleet, reports, settlement
+from drawbarline.config import Settings, from_environment
+from drawbarline.logs import configure
+from drawbarline.persistence.base import make_engine
 from drawbarline.persistence.uow import UnitOfWork
 
 TITLE = "drawbarline"
@@ -51,3 +55,10 @@ def make_app(engine: Engine) -> FastAPI:
         }
 
     return app
+
+
+def app_from(settings: Settings | None = None) -> FastAPI:
+    """Stand the application up from settings, which is what a server does."""
+    found = settings or from_environment()
+    configure(found)
+    return make_app(make_engine(found.url, echo=found.echo_sql))
