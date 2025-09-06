@@ -18,6 +18,7 @@ from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
+from drawbarline.audit import AuditError
 from drawbarline.clock import ClockError
 from drawbarline.customers import CustomerError
 from drawbarline.days import CalendarError
@@ -86,6 +87,7 @@ STATUS_FOR: dict[type[DrawbarlineError], int] = {
     MileageError: UNPROCESSABLE,
     ClockError: UNPROCESSABLE,
     CalendarError: UNPROCESSABLE,
+    AuditError: UNPROCESSABLE,
     ConfigurationError: BAD_REQUEST,
 }
 

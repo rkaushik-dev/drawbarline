@@ -9,6 +9,7 @@ So every model module is imported here, the star imports are deliberate, and
 the test that walks the metadata is what stops one being forgotten.
 """
 
+from drawbarline.persistence.models.audit import AuditRow
 from drawbarline.persistence.models.cards import (
     DefectRow,
     ObjectionRow,
@@ -38,6 +39,7 @@ from drawbarline.persistence.models.tariffs import (
 from drawbarline.persistence.models.waybill import RouteStopRow, WaybillRow
 
 __all__ = [
+    "AuditRow",
     "AverageAgreementRow",
     "CarRow",
     "ClosedPeriodRow",
