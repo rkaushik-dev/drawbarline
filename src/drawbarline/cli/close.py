@@ -17,7 +17,7 @@ import click
 from drawbarline.cli.main import Context, cli, pass_context
 from drawbarline.cli.readers import a_date, a_month
 from drawbarline.marks import ReportingMark
-from drawbarline.service import run_close
+from drawbarline.service import UNSIGNED, reopen_period, run_close
 from drawbarline.settlement.statement import cut
 
 
@@ -25,8 +25,9 @@ from drawbarline.settlement.statement import cut
 @click.argument("month")
 @click.option("--issued", required=True, help="The day the statements are cut, yyyy-mm-dd.")
 @click.option("--dry-run", is_flag=True, help="Work the month out and change nothing.")
+@click.option("--by", "actor", default=UNSIGNED, help="Whose initials go on it.")
 @pass_context
-def close(ctx: Context, month: str, issued: str, dry_run: bool) -> None:
+def close(ctx: Context, month: str, issued: str, dry_run: bool, actor: str) -> None:
     """Work a month through and shut it."""
     period = a_month(month)
     on = a_date(issued)
@@ -34,7 +35,7 @@ def close(ctx: Context, month: str, issued: str, dry_run: bool) -> None:
         raise click.ClickException("a month is closed after it ends")
 
     with ctx.work() as work:
-        result = run_close(work, period, issued=on)
+        result = run_close(work, period, issued=on, actor=actor)
         click.echo(f"month      {result.period}")
         click.echo(f"car hire   {result.car_hire}")
         click.echo(f"reclaimed  {result.reclaimed}")
@@ -72,6 +73,20 @@ def statement(ctx: Context, road: str, month: str, number: int) -> None:
     click.echo(f"          {found.direction()}")
 
 
+@cli.command("audit")
+@click.option("--limit", default=20, show_default=True, help="How many to show.")
+@click.option("--by", "actor", default=None, help="Only one person.")
+@pass_context
+def audit(ctx: Context, limit: int, actor: str | None) -> None:
+    """Who decided what, newest first."""
+    with ctx.work() as work:
+        found = work.audit.by_actor(actor) if actor else work.audit.entries(limit)
+    for entry in found:
+        click.echo(str(entry))
+    if not found:
+        click.echo("nothing on the trail yet")
+
+
 @cli.command("periods")
 @pass_context
 def periods(ctx: Context) -> None:
@@ -91,11 +106,12 @@ def periods(ctx: Context) -> None:
 @click.argument("month")
 @click.option("--on", required=True, help="The day it was opened again, yyyy-mm-dd.")
 @click.option("--reason", required=True, help="Why it had to be.")
+@click.option("--by", "actor", default=UNSIGNED, help="Whose initials go on it.")
 @pass_context
-def reopen(ctx: Context, month: str, on: str, reason: str) -> None:
+def reopen(ctx: Context, month: str, on: str, reason: str, actor: str) -> None:
     """Open a closed month again, with the reason on file."""
     period = a_month(month)
     with ctx.work() as work:
-        work.periods.reopen(period, a_date(on), reason)
+        reopen_period(work, period, on=a_date(on), reason=reason, actor=actor)
         work.commit()
     click.echo(f"reopened {period}")
