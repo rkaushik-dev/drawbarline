@@ -19,7 +19,7 @@ from sqlalchemy import Engine
 from drawbarline import __version__
 from drawbarline.api.deps import ENGINE_KEY, read_only
 from drawbarline.api.errors import install
-from drawbarline.api.routes import events, fleet, reports, settlement
+from drawbarline.api.routes import events, fleet, repairs, reports, settlement
 from drawbarline.config import Settings, from_environment
 from drawbarline.logs import configure
 from drawbarline.persistence.base import make_engine
@@ -38,6 +38,7 @@ def make_app(engine: Engine) -> FastAPI:
     app.include_router(events.router)
     app.include_router(settlement.router)
     app.include_router(reports.router)
+    app.include_router(repairs.router)
 
     @app.get("/health", tags=["service"])
     def health() -> dict[str, str]:
