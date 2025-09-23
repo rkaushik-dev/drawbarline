@@ -12,7 +12,7 @@ Sending is the other direction and it is dull, which is how it should be.
 
 from __future__ import annotations
 
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 from pathlib import Path
 
 import click
@@ -21,9 +21,11 @@ from drawbarline.cli.main import Context, cli, pass_context
 from drawbarline.cli.readers import SHEET, a_date
 from drawbarline.clock import to_local
 from drawbarline.errors import DrawbarlineError
+from drawbarline.interchange.reconcile import compare
 from drawbarline.interchange.sheet import Header, parse, render
 from drawbarline.marks import ReportingMark
 from drawbarline.reference import drawbar_line
+from drawbarline.reports.reconcile import reconciliation_report
 
 
 @cli.group()
@@ -104,3 +106,40 @@ def send(
     else:
         out.write_text(text, encoding="utf-8")
         click.echo(f"wrote {len(events)} records to {out.name}")
+
+
+@interchange.command("reconcile")
+@click.argument("file", type=SHEET)
+@click.option(
+    "--tolerance",
+    default=30,
+    show_default=True,
+    help="Minutes two clocks may differ by before it is a difference.",
+)
+@pass_context
+def reconcile(ctx: Context, file: Path, tolerance: int) -> None:
+    """Set a sheet they sent us against what we already have."""
+    sheet = parse(file.read_text(encoding="utf-8"))
+    if sheet.header is None:
+        raise click.ClickException(f"{file.name} has no header")
+    for problem in sheet.problems:
+        click.echo(f"  {problem}", err=True)
+
+    theirs = sheet.events
+    if not theirs:
+        raise click.ClickException(f"{file.name} has no records to compare")
+    days = {one.when.date() for one in theirs}
+
+    with ctx.work() as work:
+        log = work.events.log()
+    ours = [
+        one
+        for one in log.at_station(sheet.header.junction)
+        if one.road == sheet.header.road and one.when.date() in days
+    ]
+
+    found = compare(ours, theirs, tolerance=timedelta(minutes=tolerance))
+    for line in reconciliation_report(found, sheet.header.road, file.name):
+        click.echo(line)
+    if not found.clean:
+        raise SystemExit(1)
