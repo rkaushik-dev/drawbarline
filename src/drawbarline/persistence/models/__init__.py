@@ -17,6 +17,7 @@ from drawbarline.persistence.models.cards import (
     ResolutionRow,
 )
 from drawbarline.persistence.models.customers import IndustryRow, ShipperRow
+from drawbarline.persistence.models.embargo import EmbargoRow
 from drawbarline.persistence.models.events import EventRow
 from drawbarline.persistence.models.fleet import CarRow, LeaseRow, RetirementRow
 from drawbarline.persistence.models.numbering import CounterRow
@@ -46,6 +47,7 @@ __all__ = [
     "CounterRow",
     "DefectRow",
     "DepreciationRow",
+    "EmbargoRow",
     "EventRow",
     "IndustryRow",
     "LeaseRow",

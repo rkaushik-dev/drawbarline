@@ -24,6 +24,7 @@ from drawbarline.persistence.numbering import Numbering
 from drawbarline.persistence.repositories.audit import AuditRepository
 from drawbarline.persistence.repositories.cards import CardRepository
 from drawbarline.persistence.repositories.customers import CustomerRepository
+from drawbarline.persistence.repositories.embargo import EmbargoRepository
 from drawbarline.persistence.repositories.events import EventRepository
 from drawbarline.persistence.repositories.fleet import FleetRepository
 from drawbarline.persistence.repositories.rates import RateRepository
@@ -97,6 +98,10 @@ class UnitOfWork:
     @property
     def audit(self) -> AuditRepository:
         return AuditRepository(self.session)
+
+    @property
+    def embargoes(self) -> EmbargoRepository:
+        return EmbargoRepository(self.session)
 
     @property
     def committed(self) -> bool:
