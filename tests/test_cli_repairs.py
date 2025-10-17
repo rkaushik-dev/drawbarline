@@ -1,30 +1,4 @@
-import pytest
-from click.testing import CliRunner
-
-from drawbarline.cli import cli
-
-PRICES = """job,effective,labor_hundredths,material_cents
-4312,2024-07-01,250,128000
-5104,2024-07-01,125,84000
-"""
-
-CAR = [
-    "fleet",
-    "add",
-    "DBL 104207",
-    "--designation",
-    "LO",
-    "--type-code",
-    "L351",
-    "--built",
-    "2020-06-01",
-    "--light-weight",
-    "63500",
-    "--gross-rail-load",
-    "286000",
-    "--length",
-    "59-6",
-]
+from conftest import run
 
 CARD = [
     "repairs",
@@ -42,22 +16,6 @@ CARD = [
     "--defect",
     "5104:03",
 ]
-
-
-def run(database, *args):
-    return CliRunner().invoke(cli, ["--database", database, *args])
-
-
-@pytest.fixture
-def books(tmp_path):
-    database = str(tmp_path / "books.db")
-    CliRunner().invoke(cli, ["--database", database, "init"])
-    run(database, *CAR)
-    (tmp_path / "prices.csv").write_text(PRICES, encoding="utf-8")
-    run(database, "repairs", "price", str(tmp_path / "prices.csv"))
-    run(database, "repairs", "depreciation", "43", "--percent", "4", "--floor", "20")
-    run(database, "repairs", "labor", "CN", "--effective", "2024-07-01", "--cents", "4200")
-    return database
 
 
 def test_the_price_master_loads(books):
@@ -250,9 +208,5 @@ def test_the_exception_report_prints(books):
     assert "88104" in found.output
 
 
-def test_a_month_with_no_cards_reports_nothing():
-    runner = CliRunner()
-    with runner.isolated_filesystem():
-        runner.invoke(cli, ["--database", "books.db", "init"])
-        found = runner.invoke(cli, ["--database", "books.db", "repairs", "report", "2025-01"])
-        assert "0 roads" in found.output
+def test_a_month_with_no_cards_reports_nothing(empty):
+    assert "0 roads" in run(empty, "repairs", "report", "2025-01").output

@@ -1,33 +1,4 @@
-import pytest
-from click.testing import CliRunner
-
-from drawbarline.cli import cli
-
-SHIPPERS = """code,name,average_agreement
-ESCPAP,Escanaba Paper,no
-"""
-
-INDUSTRIES = """code,name,station,shipper,spots,switched
-ESCPAP1,mill house track,ESC,ESCPAP,2,
-"""
-
-CAR = [
-    "fleet",
-    "add",
-    "CN 400100",
-    "--designation",
-    "LO",
-    "--type-code",
-    "L351",
-    "--built",
-    "2020-06-01",
-    "--light-weight",
-    "63500",
-    "--gross-rail-load",
-    "286000",
-    "--length",
-    "59-6",
-]
+from conftest import run
 
 WAYBILL = [
     "waybill",
@@ -49,25 +20,6 @@ WAYBILL = [
     "--pounds",
     "198000",
 ]
-
-
-def run(database, *args):
-    return CliRunner().invoke(cli, ["--database", database, *args])
-
-
-@pytest.fixture
-def books(tmp_path):
-    database = str(tmp_path / "books.db")
-    CliRunner().invoke(cli, ["--database", database, "init"])
-    (tmp_path / "shippers.csv").write_text(SHIPPERS, encoding="utf-8")
-    (tmp_path / "industries.csv").write_text(INDUSTRIES, encoding="utf-8")
-    run(database, "reference", "shippers", str(tmp_path / "shippers.csv"))
-    run(database, "reference", "industries", str(tmp_path / "industries.csv"))
-    for number in ("CN 400100", "CN 400101", "CN 400102"):
-        args = list(CAR)
-        args[2] = number
-        run(database, *args)
-    return database
 
 
 def test_a_waybill_is_issued(books):
