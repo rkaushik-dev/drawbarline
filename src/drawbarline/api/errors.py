@@ -22,6 +22,7 @@ from drawbarline.audit import AuditError
 from drawbarline.clock import ClockError
 from drawbarline.customers import CustomerError
 from drawbarline.days import CalendarError
+from drawbarline.distribution import DistributionError
 from drawbarline.embargo import EmbargoError
 from drawbarline.errors import (
     BillingError,
@@ -70,6 +71,7 @@ STATUS_FOR: dict[type[DrawbarlineError], int] = {
     OwnershipError: CONFLICT,
     EmbargoError: CONFLICT,
     SwitchError: CONFLICT,
+    DistributionError: CONFLICT,
     ConsistError: UNPROCESSABLE,
     TariffError: UNPROCESSABLE,
     RateError: UNPROCESSABLE,
