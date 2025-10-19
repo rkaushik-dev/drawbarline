@@ -21,6 +21,7 @@ from drawbarline.persistence.models.embargo import EmbargoRow
 from drawbarline.persistence.models.events import EventRow
 from drawbarline.persistence.models.fleet import CarRow, LeaseRow, RetirementRow
 from drawbarline.persistence.models.numbering import CounterRow
+from drawbarline.persistence.models.orders import CarOrderRow
 from drawbarline.persistence.models.rates import RateBandRow
 from drawbarline.persistence.models.repairs import (
     DepreciationRow,
@@ -42,6 +43,7 @@ from drawbarline.persistence.models.waybill import RouteStopRow, WaybillRow
 __all__ = [
     "AuditRow",
     "AverageAgreementRow",
+    "CarOrderRow",
     "CarRow",
     "ClosedPeriodRow",
     "CounterRow",

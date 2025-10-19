@@ -27,6 +27,7 @@ from drawbarline.persistence.repositories.customers import CustomerRepository
 from drawbarline.persistence.repositories.embargo import EmbargoRepository
 from drawbarline.persistence.repositories.events import EventRepository
 from drawbarline.persistence.repositories.fleet import FleetRepository
+from drawbarline.persistence.repositories.orders import OrderRepository
 from drawbarline.persistence.repositories.rates import RateRepository
 from drawbarline.persistence.repositories.repairs import RepairPricingRepository
 from drawbarline.persistence.repositories.settlement import (
@@ -102,6 +103,10 @@ class UnitOfWork:
     @property
     def embargoes(self) -> EmbargoRepository:
         return EmbargoRepository(self.session)
+
+    @property
+    def orders(self) -> OrderRepository:
+        return OrderRepository(self.session)
 
     @property
     def committed(self) -> bool:
