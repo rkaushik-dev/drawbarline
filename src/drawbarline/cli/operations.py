@@ -19,9 +19,12 @@ import click
 
 from drawbarline.cli.main import Context, cli, pass_context
 from drawbarline.cli.readers import a_date
+from drawbarline.distribution import CarOrder, distribute, empties_on_hand
 from drawbarline.embargo import Embargo
+from drawbarline.fleet.aar import CarKind
 from drawbarline.lading import Commodity, Lading, Stcc
 from drawbarline.marks import CarMark, ReportingMark
+from drawbarline.reports.distribution import distribution_report, empties_report
 from drawbarline.reports.render import Align, Column, Table, heading
 from drawbarline.switching import SwitchError, plan
 from drawbarline.waybill import Waybill
@@ -237,3 +240,86 @@ def switchlist(
         click.echo("  nothing to do")
     click.echo("")
     click.echo(f"worked {found.worked} of {len(found)}")
+
+
+@cli.group()
+def order() -> None:
+    """Cars a shipper has asked for."""
+
+
+@order.command("place")
+@click.argument("number", type=int)
+@click.argument("shipper")
+@click.option("--track", required=True, help="The industry track code.")
+@click.option("--kind", required=True, help="Car kind letter, such as L or X.")
+@click.option("--cars", required=True, type=int, help="How many.")
+@click.option("--wanted", required=True, help="The day the cars are wanted.")
+@click.option("--on", default=None, help="The day it is placed. Today by default.")
+@pass_context
+def place_order(
+    ctx: Context,
+    number: int,
+    shipper: str,
+    track: str,
+    kind: str,
+    cars: int,
+    wanted: str,
+    on: str | None,
+) -> None:
+    """Take a car order."""
+    found = CarOrder(
+        number=number,
+        shipper=shipper.strip().upper(),
+        industry=track.strip().upper(),
+        kind=CarKind.from_letter(kind.strip().upper()),
+        cars=cars,
+        wanted_on=a_date(wanted),
+    )
+    placed = a_date(on) if on else datetime.now(UTC).date()
+    with ctx.work() as work:
+        work.orders.place(found, placed)
+        work.commit()
+    click.echo(f"took {found}")
+
+
+@order.command("cancel")
+@click.argument("number", type=int)
+@click.option("--on", required=True, help="The day it is cancelled.")
+@pass_context
+def cancel_order(ctx: Context, number: int, on: str) -> None:
+    """Cancel a car order."""
+    with ctx.work() as work:
+        work.orders.cancel(number, a_date(on))
+        work.commit()
+    click.echo(f"cancelled order {number}")
+
+
+@cli.command("distribute")
+@click.option("--on", required=True, help="The day the cars are wanted.")
+@click.option("--at", default=None, help="A moment in utc, yyyy-mm-dd. The same day by default.")
+@pass_context
+def distribute_cars(ctx: Context, on: str, at: str | None) -> None:
+    """Match the empties on hand against the open orders."""
+    day = a_date(on)
+    moment = datetime.combine(a_date(at) if at else day, datetime.min.time(), tzinfo=UTC)
+    with ctx.work() as work:
+        orders = work.orders.open_on(day)
+        stations = work.orders.stations()
+        empties = empties_on_hand(work.fleet.register(), work.events.log(), moment)
+    found = distribute(orders, empties, stations)
+    for line in distribution_report(found, orders, str(day)):
+        click.echo(line)
+
+
+@cli.command("empties")
+@click.option("--at", default=None, help="A moment in utc, yyyy-mm-dd. Now by default.")
+@pass_context
+def empties(ctx: Context, at: str | None) -> None:
+    """Every car standing empty on our rail."""
+    moment = (
+        datetime.combine(a_date(at), datetime.min.time(), tzinfo=UTC) if at else datetime.now(UTC)
+    )
+    with ctx.work() as work:
+        found = empties_on_hand(work.fleet.register(), work.events.log(), moment)
+    for line in empties_report(found, f"{moment:%Y-%m-%d}"):
+        click.echo(line)
