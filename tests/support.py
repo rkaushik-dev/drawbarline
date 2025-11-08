@@ -50,10 +50,18 @@ def a_fleet(*marks: str) -> FleetRegister:
     return register
 
 
+def some_bands() -> list[Band]:
+    """The car hire schedule this railroad runs on, as filings."""
+    return [
+        Band(HOPPER, 0, 9, date(2024, 7, 1), Rate(4630, 1210)),
+        Band(HOPPER, 10, 99, date(2024, 7, 1), Rate(3180, 1210)),
+    ]
+
+
 def a_rate_table() -> RateTable:
     table = RateTable()
-    table.add(Band(HOPPER, 0, 9, date(2024, 7, 1), Rate(4630, 1210)))
-    table.add(Band(HOPPER, 10, 99, date(2024, 7, 1), Rate(3180, 1210)))
+    for band in some_bands():
+        table.add(band)
     return table
 
 

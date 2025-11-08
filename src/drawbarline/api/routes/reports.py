@@ -6,8 +6,8 @@ That is deliberately unfashionable. The office reads these in a terminal and
 pastes them into mail, and a client that wants the numbers rather than the
 page has the data routes beside them.
 
-Where a report has a data form as well, both are here and they come off the
-same computation, so the page and the numbers cannot disagree.
+Nothing is computed here. The reporting layer does that and the command line
+calls the same functions, so the page and the terminal cannot drift apart.
 """
 
 from __future__ import annotations
@@ -16,18 +16,10 @@ from datetime import UTC, date, datetime
 
 from fastapi import APIRouter, Depends
 
+from drawbarline import reporting
 from drawbarline.api.deps import read_only
 from drawbarline.api.routes.settlement import a_month
-from drawbarline.carhire.liability import liability
-from drawbarline.marks import ReportingMark
 from drawbarline.persistence.uow import UnitOfWork
-from drawbarline.reference import DRAWBAR_LINE
-from drawbarline.reports.carhire import detail_report, liability_report, owed_to
-from drawbarline.reports.demurrage import detention_report, shipper_report
-from drawbarline.reports.fleet import age_profile, age_report, utilisation_report
-from drawbarline.reports.interchange import balance_report, crossings, on_hand_report
-from drawbarline.service import books_of
-from drawbarline.settlement.close import detentions_in
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
@@ -37,21 +29,14 @@ def carhire(
     month: str, road: str | None = None, work: UnitOfWork = Depends(read_only)
 ) -> list[str]:
     """Car hire liability, by road or car by car."""
-    period = a_month(month)
-    books = books_of(work)
-    owed = liability(books.fleet, books.log, books.rates, period.window, DRAWBAR_LINE.mark)
-    if road:
-        return detail_report(owed, ReportingMark.parse(road), period)
-    return liability_report(owed, period)
+    return reporting.car_hire(work, a_month(month), road)
 
 
 @router.get("/carhire/{month}/totals", response_model=dict[str, int])
 def carhire_totals(month: str, work: UnitOfWork = Depends(read_only)) -> dict[str, int]:
     """The same run as data, in cents a road."""
-    period = a_month(month)
-    books = books_of(work)
-    owed = liability(books.fleet, books.log, books.rates, period.window, DRAWBAR_LINE.mark)
-    return {road: amount.cents for road, amount in owed_to(owed).items()}
+    found = reporting.car_hire_totals(work, a_month(month))
+    return {road: amount.cents for road, amount in found.items()}
 
 
 @router.get("/demurrage/{month}", response_model=list[str])
@@ -59,33 +44,24 @@ def demurrage(
     month: str, by_shipper: bool = False, work: UnitOfWork = Depends(read_only)
 ) -> list[str]:
     """Detention, car by car or customer by customer."""
-    period = a_month(month)
-    books = books_of(work)
-    found = detentions_in(books, period)
-    tariff = books.tariffs.in_effect_on(period.last_day)
-    if by_shipper:
-        return shipper_report(found, tariff, books.customers, period.label)
-    return detention_report(found, tariff, period.label)
+    return reporting.demurrage(work, a_month(month), by_shipper=by_shipper)
 
 
 @router.get("/utilisation/{month}", response_model=list[str])
 def utilisation(month: str, work: UnitOfWork = Depends(read_only)) -> list[str]:
     """Turn time against standing time, car by car."""
-    period = a_month(month)
-    return utilisation_report(work.events.log(), period.window, period.label)
+    return reporting.utilisation(work, a_month(month))
 
 
 @router.get("/interchange/{month}", response_model=list[str])
 def interchange(month: str, work: UnitOfWork = Depends(read_only)) -> list[str]:
     """What crossed each junction, both ways."""
-    period = a_month(month)
-    return balance_report(work.events.log(), period.window, period.label)
+    return reporting.interchange(work, a_month(month))
 
 
 @router.get("/interchange/{month}/crossings", response_model=list[dict])
 def interchange_crossings(month: str, work: UnitOfWork = Depends(read_only)) -> list[dict]:
     """The same counts as data, one row a junction and road."""
-    period = a_month(month)
     return [
         {
             "junction": one.junction,
@@ -94,24 +70,31 @@ def interchange_crossings(month: str, work: UnitOfWork = Depends(read_only)) -> 
             "delivered": one.delivered,
             "net": one.net,
         }
-        for one in crossings(work.events.log(), period.window)
+        for one in reporting.interchange_crossings(work, a_month(month))
     ]
 
 
 @router.get("/onhand", response_model=list[str])
 def onhand(at: datetime | None = None, work: UnitOfWork = Depends(read_only)) -> list[str]:
     """Every car we have taken and not handed back."""
-    moment = at.astimezone(UTC) if at else datetime.now(UTC)
-    return on_hand_report(work.events.log(), moment)
+    return reporting.on_hand(work, at.astimezone(UTC) if at else datetime.now(UTC))
 
 
 @router.get("/age", response_model=list[str])
 def age(on: date | None = None, work: UnitOfWork = Depends(read_only)) -> list[str]:
     """How old the fleet is and what leaves interchange service soon."""
-    return age_report(work.fleet.register(), on or datetime.now(UTC).date())
+    return reporting.fleet_age(work, on or datetime.now(UTC).date())
 
 
 @router.get("/age/profile", response_model=dict[str, int])
 def age_data(on: date | None = None, work: UnitOfWork = Depends(read_only)) -> dict[str, int]:
     """The age profile as data, cars in each decade."""
-    return age_profile(work.fleet.register(), on or datetime.now(UTC).date())
+    return reporting.fleet_age_profile(work, on or datetime.now(UTC).date())
+
+
+@router.get("/repairs/{month}", response_model=list[str])
+def repairs(
+    month: str, exceptions: bool = False, work: UnitOfWork = Depends(read_only)
+) -> list[str]:
+    """Repair billing for a month, or what is still under exception."""
+    return reporting.repairs(work, a_month(month), exceptions=exceptions)

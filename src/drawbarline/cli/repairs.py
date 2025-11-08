@@ -8,6 +8,9 @@ Pricing a card is a separate command from filing it, because the price master
 changes and a card filed today may be priced tomorrow at a rate that was
 already in force. Filing and pricing being two steps is how the office works,
 and pretending otherwise would mean re-keying cards after a filing.
+
+The billing report is under the report group with every other report rather
+than here, because a clerk looking for a report looks in one place.
 """
 
 from __future__ import annotations
@@ -17,14 +20,13 @@ from pathlib import Path
 import click
 
 from drawbarline.cli.main import Context, cli, pass_context
-from drawbarline.cli.readers import SHEET, a_date, a_month, rows_of
+from drawbarline.cli.readers import SHEET, a_date, rows_of
 from drawbarline.marks import CarMark, ReportingMark
 from drawbarline.money import Money
 from drawbarline.repairs.card import Defect, RepairCard, price
 from drawbarline.repairs.codes import JobCode, WhyMade
 from drawbarline.repairs.objection import Ground, Objection, Outcome, Resolution
 from drawbarline.repairs.pricing import Depreciation, LaborRate, PriceLine
-from drawbarline.reports.repairs import billing_report, exception_report
 
 DEFECT_FORM = "job:why:quantity:years"
 
@@ -199,25 +201,3 @@ def answer(ctx: Context, number: int, line: int, allow: int) -> None:
         work.cards.answer(objection, Resolution(objection, outcome, allowed))
         work.commit()
     click.echo(f"card {number} line {line} {outcome.value}")
-
-
-@repairs.command("report")
-@click.argument("month")
-@click.option("--exceptions", is_flag=True, help="What is open rather than what was billed.")
-@pass_context
-def report(ctx: Context, month: str, exceptions: bool) -> None:
-    """Repair billing for a month, or what is still under exception."""
-    period = a_month(month)
-    with ctx.work() as work:
-        master = work.repair_pricing.master()
-        rates = work.repair_pricing.labor_rates()
-        cards = work.cards.between(period.first_day, period.last_day)
-        priced = [price(one, master, rates) for one in cards]
-        open_ones = work.cards.open_objections()
-    if exceptions:
-        by_number = {one.card.number: one for one in priced}
-        lines = exception_report(open_ones, by_number, period.last_day)
-    else:
-        lines = billing_report(priced, period.label)
-    for line in lines:
-        click.echo(line)

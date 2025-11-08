@@ -183,7 +183,7 @@ def test_answering_something_never_filed_is_refused(books):
 
 def test_the_billing_report_prints(books):
     run(books, *CARD)
-    found = run(books, "repairs", "report", "2025-01")
+    found = run(books, "report", "repairs", "2025-01")
     assert "REPAIR BILLING" in found.output
     assert "CN" in found.output
 
@@ -203,10 +203,10 @@ def test_the_exception_report_prints(books):
         "--on",
         "2025-02-03",
     )
-    found = run(books, "repairs", "report", "2025-01", "--exceptions")
+    found = run(books, "report", "repairs", "2025-01", "--exceptions")
     assert "OPEN REPAIR EXCEPTIONS" in found.output
     assert "88104" in found.output
 
 
 def test_a_month_with_no_cards_reports_nothing(empty):
-    assert "0 roads" in run(empty, "repairs", "report", "2025-01").output
+    assert "0 roads" in run(empty, "report", "repairs", "2025-01").output
