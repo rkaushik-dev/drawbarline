@@ -102,3 +102,12 @@ def repairs(ctx: Context, month: str, exceptions: bool) -> None:
     """Repair billing for a month, or what is still under exception."""
     with ctx.work() as work:
         show(reporting.repairs(work, a_month(month), exceptions=exceptions))
+
+
+@report.command("shop")
+@click.option("--at", default=None, help="A moment in utc, yyyy-mm-dd. Now by default.")
+@pass_context
+def shop(ctx: Context, at: str | None) -> None:
+    """Which cars are bad ordered and how long they have been down."""
+    with ctx.work() as work:
+        show(reporting.shop(work, a_moment(at)))

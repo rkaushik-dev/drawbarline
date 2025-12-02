@@ -98,3 +98,9 @@ def repairs(
 ) -> list[str]:
     """Repair billing for a month, or what is still under exception."""
     return reporting.repairs(work, a_month(month), exceptions=exceptions)
+
+
+@router.get("/shop", response_model=list[str])
+def shop(at: datetime | None = None, work: UnitOfWork = Depends(read_only)) -> list[str]:
+    """Which cars are bad ordered and how long they have been down."""
+    return reporting.shop(work, at.astimezone(UTC) if at else datetime.now(UTC))

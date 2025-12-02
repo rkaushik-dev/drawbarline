@@ -31,6 +31,7 @@ from drawbarline.reports.interchange import (
     on_hand_report,
 )
 from drawbarline.reports.repairs import billing_report, exception_report
+from drawbarline.reports.shop import shop_report
 from drawbarline.service import books_of
 from drawbarline.settlement.close import detentions_in
 from drawbarline.settlement.period import Period
@@ -102,3 +103,8 @@ def repairs(work: UnitOfWork, period: Period, *, exceptions: bool = False) -> li
         by_number = {one.card.number: one for one in priced}
         return exception_report(work.cards.open_objections(), by_number, period.last_day)
     return billing_report(priced, period.label)
+
+
+def shop(work: UnitOfWork, at: datetime) -> list[str]:
+    """What is in the shop and how long it has been there."""
+    return shop_report(work.events.log(), at)
