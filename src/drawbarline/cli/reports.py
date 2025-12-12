@@ -111,3 +111,15 @@ def shop(ctx: Context, at: str | None) -> None:
     """Which cars are bad ordered and how long they have been down."""
     with ctx.work() as work:
         show(reporting.shop(work, a_moment(at)))
+
+
+@report.command("daily")
+@click.option("--on", "on", required=True, help="The day, yyyy-mm-dd.")
+@click.option("--at", default=None, help="A moment in utc. The same day by default.")
+@pass_context
+def daily(ctx: Context, on: str, at: str | None) -> None:
+    """The morning sheet for one day."""
+    day = a_date(on)
+    moment = a_moment(at or on)
+    with ctx.work() as work:
+        show(reporting.daily(work, day, moment))

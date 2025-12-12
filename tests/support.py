@@ -146,21 +146,21 @@ def pulled(log: EventLog, mark: str, day: int, industry: str = "ESCPAP1"):
     )
 
 
-def bad_ordered(log: EventLog, mark: str, day: int, station: str = "ESC"):
+def bad_ordered(log: EventLog, mark: str, day: int, station: str = "ESC", hour: int = 8):
     car = CarMark.parse(mark)
-    return log.record(Event(EventKind.BAD_ORDERED, car, utc(2025, 1, day, 8), station))
+    return log.record(Event(EventKind.BAD_ORDERED, car, utc(2025, 1, day, hour), station))
 
 
-def repaired(log: EventLog, mark: str, day: int, station: str = "ESC"):
+def repaired(log: EventLog, mark: str, day: int, station: str = "ESC", hour: int = 8):
     car = CarMark.parse(mark)
-    return log.record(Event(EventKind.REPAIRED, car, utc(2025, 1, day, 8), station))
+    return log.record(Event(EventKind.REPAIRED, car, utc(2025, 1, day, hour), station))
 
 
-def held(log: EventLog, mark: str, day: int, station: str = "ESC"):
+def held(log: EventLog, mark: str, day: int, station: str = "ESC", hour: int = 9):
     car = CarMark.parse(mark)
-    return log.record(Event(EventKind.HELD, car, utc(2025, 1, day, 9), station))
+    return log.record(Event(EventKind.HELD, car, utc(2025, 1, day, hour), station))
 
 
-def freed(log: EventLog, mark: str, day: int, station: str = "ESC"):
+def freed(log: EventLog, mark: str, day: int, station: str = "ESC", hour: int = 9):
     car = CarMark.parse(mark)
-    return log.record(Event(EventKind.FREED, car, utc(2025, 1, day, 9), station))
+    return log.record(Event(EventKind.FREED, car, utc(2025, 1, day, hour), station))

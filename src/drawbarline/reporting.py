@@ -16,12 +16,14 @@ from __future__ import annotations
 from datetime import date, datetime
 
 from drawbarline.carhire.liability import liability
+from drawbarline.distribution import distribute, empties_on_hand
 from drawbarline.marks import ReportingMark
 from drawbarline.money import Money
 from drawbarline.persistence.uow import UnitOfWork
 from drawbarline.reference import DRAWBAR_LINE
 from drawbarline.repairs.card import price
 from drawbarline.reports.carhire import detail_report, liability_report, owed_to
+from drawbarline.reports.daily import daily_summary
 from drawbarline.reports.demurrage import detention_report, shipper_report
 from drawbarline.reports.fleet import age_profile, age_report, utilisation_report
 from drawbarline.reports.interchange import (
@@ -108,3 +110,12 @@ def repairs(work: UnitOfWork, period: Period, *, exceptions: bool = False) -> li
 def shop(work: UnitOfWork, at: datetime) -> list[str]:
     """What is in the shop and how long it has been there."""
     return shop_report(work.events.log(), at)
+
+
+def daily(work: UnitOfWork, day: date, at: datetime) -> list[str]:
+    """The morning sheet, which is every other report boiled down to one page."""
+    log = work.events.log()
+    orders = work.orders.open_on(day)
+    empties = empties_on_hand(work.fleet.register(), log, at)
+    found = distribute(orders, empties, work.orders.stations())
+    return daily_summary(log, work.embargoes.register(), found, day, at)
