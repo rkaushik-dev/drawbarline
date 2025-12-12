@@ -19,6 +19,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from drawbarline.audit import AuditError
+from drawbarline.blocking import BlockingError
 from drawbarline.clearance import ClearanceError
 from drawbarline.clock import ClockError
 from drawbarline.customers import CustomerError
@@ -86,6 +87,7 @@ STATUS_FOR: dict[type[DrawbarlineError], int] = {
     SheetError: UNPROCESSABLE,
     HazmatError: UNPROCESSABLE,
     ClearanceError: UNPROCESSABLE,
+    BlockingError: UNPROCESSABLE,
     WaybillError: UNPROCESSABLE,
     MeasureError: UNPROCESSABLE,
     WeightError: UNPROCESSABLE,
