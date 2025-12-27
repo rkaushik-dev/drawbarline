@@ -18,7 +18,7 @@ from datetime import datetime
 
 from drawbarline.clock import Interval
 from drawbarline.events.kinds import EventKind
-from drawbarline.events.replay import replay
+from drawbarline.events.positions import on_line, positions
 from drawbarline.events.stream import EventLog
 from drawbarline.marks import CarMark, ReportingMark
 from drawbarline.reports.render import Align, Column, Table, heading, hours
@@ -104,10 +104,11 @@ class OnHand:
 
 def on_hand(log: EventLog, at: datetime) -> list[OnHand]:
     """Every car we have taken and not yet handed back, oldest first."""
+    where = positions(log, at)
     found = []
-    for car in log.cars():
-        state = replay(log.stream(car), until=at)
-        if not state.on_line or state.received_at is None:
+    for car in on_line(where):
+        state = where[car]
+        if state.received_at is None:
             continue
         found.append(
             OnHand(

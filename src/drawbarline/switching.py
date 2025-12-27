@@ -12,6 +12,10 @@ that is bad ordered or held does not move at all. A track we do not switch
 today is not worked. A track that is genuinely full takes a constructive
 placement, which starts the customer's clock without the car ever being spotted.
 
+The whole log is replayed once at the top of the plan rather than car by car
+as each is looked at, which is the same walk the on hand and the empty reports
+use.
+
 Nothing in here records anything. It produces a list, the crew works it, and
 what actually happened comes back as events. A plan that wrote events would be
 a plan that had already happened.
@@ -25,7 +29,8 @@ from enum import Enum
 
 from drawbarline.customers import CustomerRegister
 from drawbarline.errors import DrawbarlineError
-from drawbarline.events.replay import CarState, replay
+from drawbarline.events.positions import on_track, positions, state_of
+from drawbarline.events.replay import CarState
 from drawbarline.events.stream import EventLog
 from drawbarline.marks import CarMark
 
@@ -103,12 +108,7 @@ class SwitchList:
 
 def cars_on_track(log: EventLog, industry: str, at: datetime) -> list[CarMark]:
     """Every car standing on one industry track at a moment."""
-    found = []
-    for car in log.cars():
-        state = replay(log.stream(car), until=at)
-        if state.industry == industry:
-            found.append(car)
-    return sorted(found)
+    return on_track(positions(log, at), industry)
 
 
 def _why(state: CarState) -> str:
@@ -131,22 +131,23 @@ def plan(
 ) -> SwitchList:
     """Work out the list, pulls first so the placements see the room they make."""
     moves: list[Move] = []
-    on_track: dict[str, list[CarMark]] = {}
+    where = positions(log, at)
+    standing_on: dict[str, list[CarMark]] = {}
 
     for track in customers.at_station(station):
-        standing = cars_on_track(log, track.code, at)
-        on_track[track.code] = list(standing)
+        standing = on_track(where, track.code)
+        standing_on[track.code] = list(standing)
         if not track.switched_on(day):
             continue
         for car in standing:
-            state = replay(log.stream(car), until=at)
+            state = state_of(where, car)
             if state.released_at is None:
                 continue
             if state.bad_ordered or state.held:
                 moves.append(Move(car, MoveKind.STOPPED, track.code, _why(state)))
                 continue
             moves.append(Move(car, MoveKind.PULL, track.code))
-            on_track[track.code].remove(car)
+            standing_on[track.code].remove(car)
 
     for car, industry in orders:
         track = customers.industry(industry)
@@ -157,7 +158,7 @@ def plan(
                 station=station,
                 track_station=track.station,
             )
-        state = replay(log.stream(car), until=at)
+        state = state_of(where, car)
         if not state.on_line:
             raise SwitchError("that car is not on our rail", car=str(car))
         if state.bad_ordered or state.held:
@@ -166,7 +167,7 @@ def plan(
         if not track.switched_on(day):
             moves.append(Move(car, MoveKind.NOT_SWITCHED, industry))
             continue
-        standing = on_track.setdefault(industry, cars_on_track(log, industry, at))
+        standing = standing_on.setdefault(industry, on_track(where, industry))
         if track.full(len(standing)):
             moves.append(Move(car, MoveKind.CONSTRUCTIVE, industry, f"{len(standing)} on hand"))
             continue

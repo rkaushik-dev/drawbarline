@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 
 from drawbarline.errors import DrawbarlineError
-from drawbarline.events.replay import replay
+from drawbarline.events.positions import positions, unplaced
 from drawbarline.events.stream import EventLog
 from drawbarline.fleet.aar import CarKind
 from drawbarline.fleet.register import FleetRegister
@@ -129,14 +129,11 @@ class Distribution:
 
 def empties_on_hand(register: FleetRegister, log: EventLog, at: datetime) -> list[Empty]:
     """Every car on our rail, off a customer track, with nothing billed to it."""
+    where = positions(log, at)
     found = []
-    for car in log.cars():
-        if not register.has(car):
-            continue
-        state = replay(log.stream(car), until=at)
-        if not state.on_line or state.placed or not state.movable:
-            continue
-        if state.waybill is not None:
+    for car in unplaced(where):
+        state = where[car]
+        if not register.has(car) or not state.movable or state.waybill is not None:
             continue
         found.append(Empty(car=car, kind=register.get(car).kind, station=state.station or ""))
     return sorted(found, key=lambda one: str(one.car))
