@@ -26,6 +26,7 @@ from drawbarline.reports.carhire import detail_report, liability_report, owed_to
 from drawbarline.reports.daily import daily_summary
 from drawbarline.reports.demurrage import detention_report, shipper_report
 from drawbarline.reports.fleet import age_profile, age_report, utilisation_report
+from drawbarline.reports.forecast import forecast_report, standing_cars
 from drawbarline.reports.interchange import (
     Crossing,
     balance_report,
@@ -119,3 +120,15 @@ def daily(work: UnitOfWork, day: date, at: datetime) -> list[str]:
     empties = empties_on_hand(work.fleet.register(), log, at)
     found = distribute(orders, empties, work.orders.stations())
     return daily_summary(log, work.embargoes.register(), found, day, at)
+
+
+def forecast(work: UnitOfWork, at: datetime, days: int = 7) -> list[str]:
+    """What the cars standing here cost a day, and over a run of days."""
+    cars = standing_cars(
+        work.fleet.register(),
+        work.events.log(),
+        work.rates.table(),
+        at,
+        DRAWBAR_LINE.mark,
+    )
+    return forecast_report(cars, at, days)

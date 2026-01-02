@@ -104,3 +104,14 @@ def repairs(
 def shop(at: datetime | None = None, work: UnitOfWork = Depends(read_only)) -> list[str]:
     """Which cars are bad ordered and how long they have been down."""
     return reporting.shop(work, at.astimezone(UTC) if at else datetime.now(UTC))
+
+
+@router.get("/forecast", response_model=list[str])
+def forecast(
+    at: datetime | None = None,
+    days: int = 7,
+    work: UnitOfWork = Depends(read_only),
+) -> list[str]:
+    """What the cars standing here cost a day if nothing moves."""
+    moment = at.astimezone(UTC) if at else datetime.now(UTC)
+    return reporting.forecast(work, moment, days)

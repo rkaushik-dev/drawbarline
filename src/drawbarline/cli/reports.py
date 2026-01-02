@@ -123,3 +123,13 @@ def daily(ctx: Context, on: str, at: str | None) -> None:
     moment = a_moment(at or on)
     with ctx.work() as work:
         show(reporting.daily(work, day, moment))
+
+
+@report.command("forecast")
+@click.option("--at", default=None, help="A moment in utc, yyyy-mm-dd. Now by default.")
+@click.option("--days", default=7, show_default=True, help="How far to run it out.")
+@pass_context
+def forecast(ctx: Context, at: str | None, days: int) -> None:
+    """What the cars standing here cost a day if nothing moves."""
+    with ctx.work() as work:
+        show(reporting.forecast(work, a_moment(at), days))
