@@ -24,9 +24,7 @@ from enum import Enum
 
 from drawbarline.clock import require_aware
 from drawbarline.errors import DrawbarlineError
-
-ACTOR_LIMIT = 32
-DETAIL_LIMIT = 200
+from drawbarline.limits import ACTOR, DETAIL
 
 
 class AuditError(DrawbarlineError):
@@ -70,9 +68,9 @@ class Entry:
         cleaned = self.actor.strip()
         if not cleaned:
             raise AuditError("an entry names who did it", action=self.action.name)
-        if len(cleaned) > ACTOR_LIMIT:
+        if len(cleaned) > ACTOR:
             raise AuditError("that is a signature, not initials", actor=self.actor)
-        if len(self.detail) > DETAIL_LIMIT:
+        if len(self.detail) > DETAIL:
             raise AuditError("that detail is too long to carry", length=len(self.detail))
         object.__setattr__(self, "actor", cleaned)
         if not self.subject.strip():

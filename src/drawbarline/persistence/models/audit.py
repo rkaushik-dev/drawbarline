@@ -13,6 +13,7 @@ from datetime import datetime
 from sqlalchemy import Index, String
 from sqlalchemy.orm import Mapped, mapped_column
 
+from drawbarline.limits import ACTOR, DETAIL, SUBJECT
 from drawbarline.persistence.base import Base
 from drawbarline.persistence.types import Utc
 
@@ -28,10 +29,10 @@ class AuditRow(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     at: Mapped[datetime] = mapped_column(Utc, index=True)
-    actor: Mapped[str] = mapped_column(String(32))
+    actor: Mapped[str] = mapped_column(String(ACTOR))
     action: Mapped[str] = mapped_column(String(24), index=True)
-    subject: Mapped[str] = mapped_column(String(60))
-    detail: Mapped[str] = mapped_column(String(200), default="")
+    subject: Mapped[str] = mapped_column(String(SUBJECT))
+    detail: Mapped[str] = mapped_column(String(DETAIL), default="")
 
     def __repr__(self) -> str:
         return f"<AuditRow {self.actor} {self.action} {self.subject}>"

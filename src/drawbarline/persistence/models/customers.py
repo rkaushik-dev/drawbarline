@@ -16,6 +16,12 @@ from __future__ import annotations
 from sqlalchemy import CheckConstraint, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from drawbarline.limits import (
+    INDUSTRY_CODE,
+    PARTY_NAME,
+    SHIPPER_CODE,
+    STATION_CODE,
+)
 from drawbarline.persistence.base import Base
 
 
@@ -24,8 +30,8 @@ class ShipperRow(Base):
 
     __tablename__ = "shipper"
 
-    code: Mapped[str] = mapped_column(String(8), primary_key=True)
-    name: Mapped[str] = mapped_column(String(60))
+    code: Mapped[str] = mapped_column(String(SHIPPER_CODE), primary_key=True)
+    name: Mapped[str] = mapped_column(String(PARTY_NAME))
     average_agreement: Mapped[bool] = mapped_column(default=False)
 
     industries: Mapped[list[IndustryRow]] = relationship(
@@ -47,11 +53,11 @@ class IndustryRow(Base):
         CheckConstraint("length(switched) > 0", name="ck_industry_is_switched"),
     )
 
-    code: Mapped[str] = mapped_column(String(12), primary_key=True)
-    name: Mapped[str] = mapped_column(String(60))
-    station: Mapped[str] = mapped_column(String(4), index=True)
+    code: Mapped[str] = mapped_column(String(INDUSTRY_CODE), primary_key=True)
+    name: Mapped[str] = mapped_column(String(PARTY_NAME))
+    station: Mapped[str] = mapped_column(String(STATION_CODE), index=True)
     shipper_code: Mapped[str] = mapped_column(
-        String(8), ForeignKey("shipper.code", ondelete="CASCADE"), index=True
+        String(SHIPPER_CODE), ForeignKey("shipper.code", ondelete="CASCADE"), index=True
     )
     spots: Mapped[int] = mapped_column()
     switched: Mapped[str] = mapped_column(String(32))

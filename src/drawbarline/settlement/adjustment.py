@@ -19,12 +19,11 @@ from dataclasses import dataclass
 from datetime import date
 
 from drawbarline.errors import SettlementError
+from drawbarline.limits import REFERENCE
 from drawbarline.marks import ReportingMark
 from drawbarline.money import Money
 from drawbarline.settlement.ledger import Ledger, Posting, PostingKind
 from drawbarline.settlement.period import Period, PeriodRegister
-
-REFERENCE_LIMIT = 60
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,7 +53,7 @@ class Adjustment:
     def reference(self) -> str:
         """What the other road reads on the statement line."""
         text = f"adjusts {self.corrects.label}: {self.reason}"
-        return text[:REFERENCE_LIMIT]
+        return text[:REFERENCE]
 
     def __str__(self) -> str:
         way = "to" if self.amount.cents > 0 else "from"
@@ -117,7 +116,7 @@ def apply_remittance(ledger: Ledger, remittance: Remittance) -> Posting:
             kind=PostingKind.PAYMENT,
             amount=-remittance.amount,
             on=remittance.settles.last_day,
-            reference=reference[:REFERENCE_LIMIT],
+            reference=reference[:REFERENCE],
         )
     )
 

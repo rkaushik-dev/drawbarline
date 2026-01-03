@@ -21,6 +21,7 @@ from sqlalchemy import CheckConstraint, ForeignKey, Index, String, UniqueConstra
 from sqlalchemy.orm import Mapped, mapped_column
 
 from drawbarline.events.kinds import EventKind
+from drawbarline.limits import NOTE
 from drawbarline.marks import CarMark, ReportingMark
 from drawbarline.persistence.base import Base
 from drawbarline.persistence.types import CarMarkText, MarkText, Utc
@@ -49,7 +50,7 @@ class EventRow(Base):
     industry: Mapped[str | None] = mapped_column(String(12), default=None)
     waybill: Mapped[int | None] = mapped_column(default=None)
     tenths: Mapped[int | None] = mapped_column(default=None)
-    note: Mapped[str] = mapped_column(String(120), default="")
+    note: Mapped[str] = mapped_column(String(NOTE), default="")
 
     def __repr__(self) -> str:
         return f"<EventRow {self.car_mark} {self.kind} {self.happened:%Y-%m-%d}>"

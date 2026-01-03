@@ -21,10 +21,9 @@ from datetime import datetime
 from drawbarline.clock import require_aware
 from drawbarline.errors import EventError
 from drawbarline.events.kinds import EventKind
+from drawbarline.limits import NOTE
 from drawbarline.marks import CarMark, ReportingMark
 from drawbarline.mileage import milepost
-
-NOTE_LIMIT = 120
 
 # Lower sorts earlier. A car is received before it moves, moved before it is
 # placed, and released before it is pulled.
@@ -83,7 +82,7 @@ class Event:
 
         if self.waybill is not None and self.waybill < 1:
             raise EventError("a waybill is numbered from one", waybill=self.waybill)
-        if len(self.note) > NOTE_LIMIT:
+        if len(self.note) > NOTE:
             raise EventError("that note is too long to carry", length=len(self.note))
 
     @property
