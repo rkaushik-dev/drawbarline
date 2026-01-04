@@ -133,3 +133,13 @@ def forecast(ctx: Context, at: str | None, days: int) -> None:
     """What the cars standing here cost a day if nothing moves."""
     with ctx.work() as work:
         show(reporting.forecast(work, a_moment(at), days))
+
+
+@report.command("balance")
+@click.argument("month")
+@click.option("--by-kind", is_flag=True, help="Split the month by kind of charge.")
+@pass_context
+def balance(ctx: Context, month: str, by_kind: bool) -> None:
+    """The trial balance, which proves the other reports."""
+    with ctx.work() as work:
+        show(reporting.trial_balance(work, a_month(month), by_kind=by_kind))

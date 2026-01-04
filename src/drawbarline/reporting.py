@@ -33,6 +33,7 @@ from drawbarline.reports.interchange import (
     crossings,
     on_hand_report,
 )
+from drawbarline.reports.ledger import by_kind_report, trial_balance_report
 from drawbarline.reports.repairs import billing_report, exception_report
 from drawbarline.reports.shop import shop_report
 from drawbarline.service import books_of
@@ -132,3 +133,11 @@ def forecast(work: UnitOfWork, at: datetime, days: int = 7) -> list[str]:
         DRAWBAR_LINE.mark,
     )
     return forecast_report(cars, at, days)
+
+
+def trial_balance(work: UnitOfWork, period: Period, *, by_kind: bool = False) -> list[str]:
+    """The trial balance for a month, or the same month split by kind."""
+    ledger = work.ledger.ledger()
+    if by_kind:
+        return by_kind_report(ledger, period)
+    return trial_balance_report(ledger, period)

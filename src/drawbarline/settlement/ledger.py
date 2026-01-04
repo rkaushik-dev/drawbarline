@@ -155,6 +155,10 @@ class Ledger:
     def owed_to_us(self, period: Period | None = None) -> Money:
         return total(abs(amount) for amount in self.net(period).values() if amount.cents < 0)
 
+    def position_through(self, period: Period) -> Money:
+        """The whole pool up to and including a month, which a trial balance checks."""
+        return total(self.account(road).balance_through(period) for road in self.roads())
+
     def position(self, period: Period | None = None) -> Money:
         """One number for the whole pool, positive when we are behind."""
         return total(self.net(period).values())

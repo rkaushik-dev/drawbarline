@@ -115,3 +115,9 @@ def forecast(
     """What the cars standing here cost a day if nothing moves."""
     moment = at.astimezone(UTC) if at else datetime.now(UTC)
     return reporting.forecast(work, moment, days)
+
+
+@router.get("/balance/{month}", response_model=list[str])
+def balance(month: str, by_kind: bool = False, work: UnitOfWork = Depends(read_only)) -> list[str]:
+    """The trial balance, which proves the other reports."""
+    return reporting.trial_balance(work, a_month(month), by_kind=by_kind)
