@@ -20,6 +20,7 @@ from drawbarline import __version__
 from drawbarline.api.deps import ENGINE_KEY, read_only
 from drawbarline.api.errors import install
 from drawbarline.api.routes import (
+    audit,
     events,
     fleet,
     operations,
@@ -47,6 +48,7 @@ def make_app(engine: Engine) -> FastAPI:
     app.include_router(reports.router)
     app.include_router(repairs.router)
     app.include_router(operations.router)
+    app.include_router(audit.router)
 
     @app.get("/health", tags=["service"])
     def health() -> dict[str, str]:
