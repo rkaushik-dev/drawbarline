@@ -38,6 +38,11 @@ dev = [
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+# The marker tells anybody importing this package that the annotations are
+# real and can be checked against. Without it the types are ignored.
+drawbarline = ["py.typed"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src", "tests"]
