@@ -30,6 +30,7 @@ dev = [
   "pytest==8.3.4",
   "httpx==0.28.1",
   "pytest-xdist==3.6.1",
+  "pytest-cov==6.0.0",
   "ruff==0.9.6",
   "mypy==1.15.0",
 ]
@@ -45,6 +46,26 @@ filterwarnings = [
   # Starlette's test client still reaches for an anyio alias anyio has
   # deprecated. Not ours to fix and not worth reading on every run.
   "ignore:The anyio.abc.BlockingPortal alias is deprecated:DeprecationWarning",
+]
+
+[tool.coverage.run]
+source = ["drawbarline"]
+branch = true
+# The workers each write their own file and they are combined afterwards.
+parallel = true
+concurrency = ["multiprocessing"]
+
+[tool.coverage.report]
+# The suite has covered everything but a handful of defensive branches since
+# the persistence layer landed. The floor is set just under where it sits so
+# that losing real coverage fails rather than drifting.
+fail_under = 95
+show_missing = true
+skip_covered = true
+exclude_lines = [
+  "pragma: no cover",
+  "if TYPE_CHECKING:",
+  "raise NotImplementedError",
 ]
 
 [tool.ruff]

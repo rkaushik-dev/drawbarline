@@ -10,6 +10,9 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 env:
   PIP_DISABLE_PIP_VERSION_CHECK: "1"
 
@@ -53,6 +56,26 @@ jobs:
           cache: pip
       - run: python -m pip install -e ".[dev]"
       - run: pytest
+
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: python -m pip install -e ".[dev]"
+      # The floor is in pyproject so the number is the same here and locally.
+      - run: pytest --cov --cov-report=term-missing
+      - name: keep the coverage data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: .coverage*
+          if-no-files-found: ignore
+          retention-days: 7
 
   migrations:
     runs-on: ubuntu-latest
