@@ -51,6 +51,7 @@ from drawbarline.measure import MeasureError
 from drawbarline.mileage import MileageError
 from drawbarline.money import MoneyError
 from drawbarline.network import NetworkError
+from drawbarline.scales import ScaleError
 from drawbarline.switching import SwitchError
 from drawbarline.train import ConsistError
 from drawbarline.waybill import WaybillError
@@ -88,6 +89,7 @@ STATUS_FOR: dict[type[DrawbarlineError], int] = {
     SheetError: UNPROCESSABLE,
     HazmatError: UNPROCESSABLE,
     ClearanceError: UNPROCESSABLE,
+    ScaleError: UNPROCESSABLE,
     BlockingError: UNPROCESSABLE,
     WaybillError: UNPROCESSABLE,
     MeasureError: UNPROCESSABLE,
