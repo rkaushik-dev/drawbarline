@@ -143,3 +143,13 @@ def balance(ctx: Context, month: str, by_kind: bool) -> None:
     """The trial balance, which proves the other reports."""
     with ctx.work() as work:
         show(reporting.trial_balance(work, a_month(month), by_kind=by_kind))
+
+
+@report.command("annual")
+@click.argument("year", type=int)
+@click.option("--road", default=None, help="One road rather than the whole pool.")
+@pass_context
+def annual(ctx: Context, year: int, road: str | None) -> None:
+    """The year on one page."""
+    with ctx.work() as work:
+        show(reporting.annual(work, year, road))

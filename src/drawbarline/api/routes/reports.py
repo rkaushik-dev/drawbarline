@@ -121,3 +121,9 @@ def forecast(
 def balance(month: str, by_kind: bool = False, work: UnitOfWork = Depends(read_only)) -> list[str]:
     """The trial balance, which proves the other reports."""
     return reporting.trial_balance(work, a_month(month), by_kind=by_kind)
+
+
+@router.get("/annual/{year}", response_model=list[str])
+def annual(year: int, road: str | None = None, work: UnitOfWork = Depends(read_only)) -> list[str]:
+    """The year on one page."""
+    return reporting.annual(work, year, road)

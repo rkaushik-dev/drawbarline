@@ -22,6 +22,7 @@ from drawbarline.money import Money
 from drawbarline.persistence.uow import UnitOfWork
 from drawbarline.reference import DRAWBAR_LINE
 from drawbarline.repairs.card import price
+from drawbarline.reports.annual import annual_report
 from drawbarline.reports.carhire import detail_report, liability_report, owed_to
 from drawbarline.reports.daily import daily_summary
 from drawbarline.reports.demurrage import detention_report, shipper_report
@@ -141,3 +142,9 @@ def trial_balance(work: UnitOfWork, period: Period, *, by_kind: bool = False) ->
     if by_kind:
         return by_kind_report(ledger, period)
     return trial_balance_report(ledger, period)
+
+
+def annual(work: UnitOfWork, year: int, road: str | None = None) -> list[str]:
+    """The year on one page, for the whole pool or for one road."""
+    mark = ReportingMark.parse(road) if road else None
+    return annual_report(work.ledger.ledger(), year, mark)
