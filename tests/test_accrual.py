@@ -11,6 +11,7 @@ from drawbarline.carhire.accrual import (
     pieces,
     settlement_date,
 )
+from drawbarline.carhire.deprescription import Election, Elections
 from drawbarline.carhire.rates import Band, Rate, RateTable
 from drawbarline.clock import Interval, utc
 from drawbarline.errors import RateError
@@ -43,6 +44,9 @@ def a_table():
     table.add(Band(HOPPER, 10, 19, date(2024, 7, 1), Rate(3180, 1210)))
     table.add(Band(HOPPER, 0, 9, date(2025, 7, 1), Rate(4880, 1290)))
     table.add(Band(HOPPER, 10, 19, date(2025, 7, 1), Rate(3400, 1290)))
+    # The old cars are on one flat band, which is what the schedule does once
+    # a car is past twenty.
+    table.add(Band(HOPPER, 20, 99, date(2024, 7, 1), Rate(1470, 1210)))
     return table
 
 
@@ -180,3 +184,49 @@ def test_the_same_span_reads_an_hour_earlier_across_the_seam():
     line = drawbar_line()
     window = Interval(utc(2025, 1, 14, 14), utc(2025, 1, 14, 18))
     assert as_read_at(window, line.station("MRN")).startswith("2025-01-14 08:00")
+
+
+def a_condemned_car():
+    return a_car(built=date(1970, 1, 1))
+
+
+def test_a_condemned_car_is_priced_at_nothing():
+    window = Interval(utc(2025, 1, 14, 12), utc(2025, 1, 16, 12))
+    assert hourly(a_condemned_car(), a_table(), window) == Money(0)
+
+
+def test_a_condemned_car_produces_no_pieces():
+    window = Interval(utc(2025, 1, 14, 12), utc(2025, 1, 16, 12))
+    assert pieces(a_condemned_car(), a_table(), window) == []
+
+
+def test_a_condemned_car_runs_no_chargeable_miles():
+    assert mileage(a_condemned_car(), a_table(), 1000, date(2025, 1, 14)) == Money(0)
+
+
+def test_a_span_that_crosses_the_expiry_only_prices_the_live_part():
+    car = a_car(built=date(1975, 6, 15))
+    window = Interval(utc(2025, 6, 14, 12), utc(2025, 6, 16, 12))
+    found = pieces(car, a_table(), window)
+    assert len(found) == 1
+    assert found[0].on == date(2025, 6, 14)
+
+
+def test_an_election_lowers_the_hourly_charge():
+    table = a_table()
+    elections = Elections()
+    elections.file(Election(HOPPER, 0, 9, date(2024, 7, 1), 3900), table)
+    window = Interval(utc(2025, 1, 14, 12), utc(2025, 1, 14, 13))
+    assert hourly(a_car(), table, window, elections) == Money(390)
+
+
+def test_an_election_leaves_the_mileage_alone():
+    table = a_table()
+    elections = Elections()
+    elections.file(Election(HOPPER, 0, 9, date(2024, 7, 1), 3900), table)
+    assert mileage(a_car(), table, 1000, date(2025, 1, 14), elections) == Money(12100)
+
+
+def test_no_election_prices_at_the_schedule():
+    window = Interval(utc(2025, 1, 14, 12), utc(2025, 1, 14, 13))
+    assert hourly(a_car(), a_table(), window, Elections()) == Money(463)

@@ -10,6 +10,10 @@ and midnight is a different instant at Escanaba than at Marinette. The general
 office keeps central time and files everything on it, so that is the clock the
 cuts are made on, stated here once rather than assumed in five places.
 
+A car past its fifty years earns nothing, and that is checked here rather
+than by whoever is reading the accrual. A rate lookup that answers for a
+condemned car is a rate lookup that keeps billing for it.
+
 Rounding happens once, on the finished piece, not on each hour. A tenth of a
 cent an hour rounded up every hour would add about two dollars a month to a
 single car and nobody could reproduce the figure.
@@ -21,6 +25,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, time
 from zoneinfo import ZoneInfo
 
+from drawbarline.carhire.deprescription import Elections, payable
 from drawbarline.carhire.rates import Rate, RateTable
 from drawbarline.clock import Interval, to_local
 from drawbarline.errors import RateError
@@ -80,6 +85,9 @@ def _anniversaries(car: Car, first: date, last: date) -> list[date]:
     return found
 
 
+NO_ELECTIONS = Elections()
+
+
 def cut_points(car: Car, table: RateTable, window: Interval) -> list[date]:
     """The accounting days a span has to be split on, in order."""
     first = settlement_date(window.start)
@@ -89,10 +97,21 @@ def cut_points(car: Car, table: RateTable, window: Interval) -> list[date]:
     return sorted(day for day in steps if window.contains(midnight_on(day)))
 
 
-def pieces(car: Car, table: RateTable, window: Interval) -> list[Piece]:
-    """Cut a span at every rate step and price each piece."""
+def pieces(
+    car: Car,
+    table: RateTable,
+    window: Interval,
+    elections: Elections | None = None,
+) -> list[Piece]:
+    """Cut a span at every rate step and price each piece.
+
+    A piece the car was not in interchange service for is left out rather than
+    priced at zero, so a span that is wholly outside the car's life comes back
+    empty and nothing on the statement mentions it.
+    """
     if window.empty:
         return []
+    chosen = elections or NO_ELECTIONS
     edges = [window.start]
     edges.extend(midnight_on(day) for day in cut_points(car, table, window))
     edges.append(window.end)
@@ -102,24 +121,39 @@ def pieces(car: Car, table: RateTable, window: Interval) -> list[Piece]:
         if start == end:
             continue
         day = settlement_date(start)
-        rate = table.lookup(car.type_code, car.age_on(day), day)
+        rate = payable(car, table, chosen, day)
+        if rate is None:
+            continue
         found.append(Piece(Interval(start, end), rate, day))
     return found
 
 
-def hourly(car: Car, table: RateTable, window: Interval) -> Money:
+def hourly(
+    car: Car,
+    table: RateTable,
+    window: Interval,
+    elections: Elections | None = None,
+) -> Money:
     """What the hours in a span come to."""
     total = 0
-    for piece in pieces(car, table, window):
+    for piece in pieces(car, table, window, elections):
         total += piece.amount.cents
     return Money(total)
 
 
-def mileage(car: Car, table: RateTable, tenths_run: int, on: date) -> Money:
+def mileage(
+    car: Car,
+    table: RateTable,
+    tenths_run: int,
+    on: date,
+    elections: Elections | None = None,
+) -> Money:
     """What the miles come to, at the rate in force on the day they ran."""
     if tenths_run < 0:
         raise RateError("a car does not run backwards", tenths=tenths_run)
-    rate = table.lookup(car.type_code, car.age_on(on), on)
+    rate = payable(car, table, elections or NO_ELECTIONS, on)
+    if rate is None:
+        return Money(0)
     mills = rate.mileage_mills * tenths_run
     return Money(round(mills / (TENTHS_PER_MILE * TENTHS_OF_CENT_PER_CENT)))
 
