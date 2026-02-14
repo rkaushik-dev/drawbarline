@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 from drawbarline.errors import ConfigurationError
 from drawbarline.persistence.base import make_sessions
 from drawbarline.persistence.numbering import Numbering
+from drawbarline.persistence.repositories.agreements import AgreementRepository
 from drawbarline.persistence.repositories.audit import AuditRepository
 from drawbarline.persistence.repositories.cards import CardRepository
 from drawbarline.persistence.repositories.customers import CustomerRepository
@@ -107,6 +108,10 @@ class UnitOfWork:
     @property
     def orders(self) -> OrderRepository:
         return OrderRepository(self.session)
+
+    @property
+    def agreements(self) -> AgreementRepository:
+        return AgreementRepository(self.session)
 
     @property
     def committed(self) -> bool:
