@@ -17,8 +17,9 @@ from datetime import UTC, datetime
 
 import click
 
+from drawbarline.agreements import InterchangeAgreement
 from drawbarline.cli.main import Context, cli, pass_context
-from drawbarline.cli.readers import a_date
+from drawbarline.cli.readers import a_date, a_time
 from drawbarline.distribution import CarOrder, distribute, empties_on_hand
 from drawbarline.embargo import Embargo
 from drawbarline.fleet.aar import CarKind
@@ -26,6 +27,7 @@ from drawbarline.lading import Commodity, Lading, Stcc
 from drawbarline.marks import CarMark, ReportingMark
 from drawbarline.reports.distribution import distribution_report, empties_report
 from drawbarline.reports.render import Align, Column, Table, heading
+from drawbarline.service import UNSIGNED, delivery_check, sign_agreement
 from drawbarline.switching import SwitchError, plan
 from drawbarline.waybill import Waybill
 from drawbarline.weight import Weight
@@ -323,3 +325,119 @@ def empties(ctx: Context, at: str | None) -> None:
         found = empties_on_hand(work.fleet.register(), work.events.log(), moment)
     for line in empties_report(found, f"{moment:%Y-%m-%d}"):
         click.echo(line)
+
+
+@cli.group()
+def agreement() -> None:
+    """What each connection takes, and when."""
+
+
+@agreement.command("sign")
+@click.argument("road")
+@click.argument("junction")
+@click.option("--effective", required=True, help="The day it takes effect.")
+@click.option("--kinds", required=True, help="Car kind letters, such as LX.")
+@click.option("--cap", required=True, type=int, help="Cars a day.")
+@click.option("--opens", required=True, help="When the junction is manned, hh:mm.")
+@click.option("--closes", required=True, help="When it shuts, hh:mm.")
+@click.option("--hazardous", is_flag=True, help="They take placarded cars.")
+@click.option("--expires", default=None, help="The day it ends, if it is known.")
+@click.option("--by", "actor", default=UNSIGNED, help="Whose initials go on it.")
+@pass_context
+def sign(
+    ctx: Context,
+    road: str,
+    junction: str,
+    effective: str,
+    kinds: str,
+    cap: int,
+    opens: str,
+    closes: str,
+    hazardous: bool,
+    expires: str | None,
+    actor: str,
+) -> None:
+    """File an interchange agreement."""
+    found = InterchangeAgreement(
+        road=ReportingMark.parse(road),
+        junction=junction.strip().upper(),
+        effective=a_date(effective),
+        kinds=frozenset(CarKind.from_letter(one) for one in kinds.strip().upper()),
+        daily_cap=cap,
+        opens=a_time(opens),
+        closes=a_time(closes),
+        hazardous=hazardous,
+        expires=a_date(expires) if expires else None,
+    )
+    with ctx.work() as work:
+        sign_agreement(work, found, actor=actor)
+        work.commit()
+    click.echo(f"signed {found}")
+
+
+@agreement.command("list")
+@click.option("--on", default=None, help="Only the ones in force on a day.")
+@pass_context
+def list_agreements(ctx: Context, on: str | None) -> None:
+    """Every agreement, or only the live ones."""
+    with ctx.work() as work:
+        found = work.agreements.in_force_on(a_date(on)) if on else work.agreements.all()
+    table = Table(
+        [
+            Column("junction"),
+            Column("road"),
+            Column("kinds"),
+            Column("cap", Align.RIGHT),
+            Column("manned"),
+            Column("hazmat"),
+        ]
+    )
+    for one in found:
+        table.add(
+            one.junction,
+            str(one.road),
+            "".join(sorted(kind.letter for kind in one.kinds)),
+            str(one.daily_cap),
+            f"{one.opens:%H:%M} to {one.closes:%H:%M}",
+            "yes" if one.hazardous else "no",
+        )
+    table.total(f"{len(found)} agreements", "", "", "", "", "")
+    for line in [*heading("interchange agreements", on or "all"), *table.lines()]:
+        click.echo(line)
+
+
+@cli.command("deliver")
+@click.argument("car")
+@click.option("--to", "road", required=True, help="The connection.")
+@click.option("--at", "junction", required=True, help="The junction.")
+@click.option("--when", required=True, help="A local reading, yyyy-mm-dd hh:mm.")
+@click.option("--commodity", default=None, help="Seven digit commodity code.")
+@pass_context
+def deliver(
+    ctx: Context,
+    car: str,
+    road: str,
+    junction: str,
+    when: str,
+    commodity: str | None,
+) -> None:
+    """Ask whether a car can be handed across right now."""
+    where = junction.strip().upper()
+    lading = None
+    if commodity:
+        lading = Commodity(Stcc.parse(commodity), "as billed")
+    local = datetime.strptime(when.strip(), "%Y-%m-%d %H:%M")
+    with ctx.work() as work:
+        found = delivery_check(
+            work,
+            CarMark.parse(car),
+            junction=where,
+            road=ReportingMark.parse(road),
+            local=local,
+            commodity=lading,
+        )
+    click.echo(str(found))
+    for one in found.findings:
+        click.echo(f"  {one}")
+    if not found.goes:
+        raise SystemExit(1)

@@ -47,6 +47,7 @@ class Action(Enum):
     ANSWERED_EXCEPTION = "answered an exception"
     LOADED_SHEET = "loaded an interchange sheet"
     PUBLISHED_TARIFF = "published a tariff"
+    SIGNED_AGREEMENT = "signed an interchange agreement"
 
     @property
     def text(self) -> str:

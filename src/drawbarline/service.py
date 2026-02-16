@@ -20,10 +20,13 @@ ledger built in a test with no database at all.
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 
+from drawbarline.agreements import InterchangeAgreement
 from drawbarline.audit import Action
-from drawbarline.marks import ReportingMark
+from drawbarline.interchange.delivery import Verdict, can_deliver
+from drawbarline.lading import Commodity
+from drawbarline.marks import CarMark, ReportingMark
 from drawbarline.network import Network
 from drawbarline.persistence.numbering import INVOICES, STATEMENTS
 from drawbarline.persistence.uow import UnitOfWork
@@ -96,3 +99,41 @@ def reopen_period(
     work.periods.reopen(period, on, reason)
     work.audit.record(actor, Action.REOPENED_PERIOD, period.label, reason)
     return period
+
+
+def sign_agreement(
+    work: UnitOfWork, agreement: InterchangeAgreement, *, actor: str = UNSIGNED
+) -> InterchangeAgreement:
+    """File an interchange agreement and record who filed it."""
+    work.agreements.sign(agreement)
+    work.audit.record(
+        actor,
+        Action.SIGNED_AGREEMENT,
+        agreement.code,
+        f"cap {agreement.daily_cap}, {agreement.opens:%H:%M} to {agreement.closes:%H:%M}",
+    )
+    return agreement
+
+
+def delivery_check(
+    work: UnitOfWork,
+    car: CarMark,
+    *,
+    junction: str,
+    road: ReportingMark,
+    local: datetime,
+    commodity: Commodity | None = None,
+    network: Network | None = None,
+) -> Verdict:
+    """Ask the equipment, the embargoes and the agreement in one go."""
+    line = network or drawbar_line()
+    return can_deliver(
+        car,
+        fleet=work.fleet.register(),
+        log=work.events.log(),
+        embargoes=work.embargoes.register(),
+        agreement=work.agreements.at(junction, road, local.date()),
+        station=line.station(junction),
+        local=local,
+        commodity=commodity,
+    )

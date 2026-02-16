@@ -13,7 +13,7 @@ where the user cannot see a schema, so the error message is the schema.
 from __future__ import annotations
 
 import csv
-from datetime import date, datetime
+from datetime import date, datetime, time
 from pathlib import Path
 
 import click
@@ -27,6 +27,7 @@ SHEET = click.Path(exists=True, dir_okay=False, path_type=Path)
 DAY_FORM = "yyyy-mm-dd"
 MONTH_FORM = "yyyy-mm"
 READING_FORM = "yyyy-mm-dd hh:mm"
+CLOCK_FORM = "hh:mm"
 
 
 def a_date(text: str) -> date:
@@ -56,6 +57,14 @@ def a_moment(station_code: str, text: str, *, second_pass: bool = False) -> date
         ) from bad
     station = drawbar_line().station(station_code)
     return to_utc(station, local, second_pass=second_pass)
+
+
+def a_time(text: str) -> time:
+    """An hour on a clock, as an agreement states its manned hours."""
+    try:
+        return datetime.strptime(text.strip(), "%H:%M").time()
+    except ValueError as bad:
+        raise click.ClickException(f"{text!r} is not a time, write it as {CLOCK_FORM}") from bad
 
 
 def rows_of(path: Path) -> list[dict[str, str]]:
