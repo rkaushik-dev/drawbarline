@@ -6,7 +6,9 @@ import pytest
 from drawbarline.cli.readers import (
     a_date,
     a_moment,
+    a_moment_utc,
     a_month,
+    a_time,
     require_columns,
     rows_of,
 )
@@ -97,3 +99,41 @@ def test_a_sheet_missing_a_column_is_refused():
 def test_a_sheet_with_no_rows_at_all_is_refused():
     with pytest.raises(click.ClickException):
         require_columns([], {"a"}, "empty.csv")
+
+
+def test_a_day_reads_as_midnight_utc():
+    found = a_moment_utc("2025-01-14")
+    assert found == utc(2025, 1, 14)
+    assert found.tzinfo is not None
+
+
+def test_no_day_reads_as_now():
+    from datetime import UTC, datetime
+
+    before = datetime.now(UTC)
+    found = a_moment_utc(None)
+    assert before <= found <= datetime.now(UTC)
+
+
+def test_a_day_that_cannot_be_read_is_refused_here_too():
+    with pytest.raises(click.ClickException):
+        a_moment_utc("tuesday")
+
+
+def test_a_clock_reading_reads_back():
+    from datetime import time
+
+    assert a_time("07:00") == time(7, 0)
+
+
+def test_a_clock_reading_with_space_around_it_reads_back():
+    from datetime import time
+
+    assert a_time(" 19:30 ") == time(19, 30)
+
+
+@pytest.mark.parametrize("bad", ["", "morning", "25:00", "7"])
+def test_a_clock_reading_that_cannot_be_read_is_refused(bad):
+    with pytest.raises(click.ClickException) as caught:
+        a_time(bad)
+    assert "hh:mm" in caught.value.format_message()

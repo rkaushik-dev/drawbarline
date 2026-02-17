@@ -19,7 +19,7 @@ import click
 
 from drawbarline.agreements import InterchangeAgreement
 from drawbarline.cli.main import Context, cli, pass_context
-from drawbarline.cli.readers import a_date, a_time
+from drawbarline.cli.readers import a_date, a_moment_utc, a_time
 from drawbarline.distribution import CarOrder, distribute, empties_on_hand
 from drawbarline.embargo import Embargo
 from drawbarline.fleet.aar import CarKind
@@ -303,7 +303,7 @@ def cancel_order(ctx: Context, number: int, on: str) -> None:
 def distribute_cars(ctx: Context, on: str, at: str | None) -> None:
     """Match the empties on hand against the open orders."""
     day = a_date(on)
-    moment = datetime.combine(a_date(at) if at else day, datetime.min.time(), tzinfo=UTC)
+    moment = a_moment_utc(at) if at else a_moment_utc(on)
     with ctx.work() as work:
         orders = work.orders.open_on(day)
         stations = work.orders.stations()

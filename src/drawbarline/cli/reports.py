@@ -17,19 +17,12 @@ import click
 
 from drawbarline import reporting
 from drawbarline.cli.main import Context, cli, pass_context
-from drawbarline.cli.readers import a_date, a_month
+from drawbarline.cli.readers import a_date, a_moment_utc, a_month
 
 
 def show(lines: list[str]) -> None:
     for line in lines:
         click.echo(line)
-
-
-def a_moment(text: str | None) -> datetime:
-    """A day given as yyyy-mm-dd read as midnight utc, or now."""
-    if text is None:
-        return datetime.now(UTC)
-    return datetime.combine(a_date(text), datetime.min.time(), tzinfo=UTC)
 
 
 @cli.group()
@@ -81,7 +74,7 @@ def interchange(ctx: Context, month: str) -> None:
 def onhand(ctx: Context, at: str | None) -> None:
     """Every car we have taken and not handed back."""
     with ctx.work() as work:
-        show(reporting.on_hand(work, a_moment(at)))
+        show(reporting.on_hand(work, a_moment_utc(at)))
 
 
 @report.command("age")
@@ -110,7 +103,7 @@ def repairs(ctx: Context, month: str, exceptions: bool) -> None:
 def shop(ctx: Context, at: str | None) -> None:
     """Which cars are bad ordered and how long they have been down."""
     with ctx.work() as work:
-        show(reporting.shop(work, a_moment(at)))
+        show(reporting.shop(work, a_moment_utc(at)))
 
 
 @report.command("daily")
@@ -120,7 +113,7 @@ def shop(ctx: Context, at: str | None) -> None:
 def daily(ctx: Context, on: str, at: str | None) -> None:
     """The morning sheet for one day."""
     day = a_date(on)
-    moment = a_moment(at or on)
+    moment = a_moment_utc(at or on)
     with ctx.work() as work:
         show(reporting.daily(work, day, moment))
 
@@ -132,7 +125,7 @@ def daily(ctx: Context, on: str, at: str | None) -> None:
 def forecast(ctx: Context, at: str | None, days: int) -> None:
     """What the cars standing here cost a day if nothing moves."""
     with ctx.work() as work:
-        show(reporting.forecast(work, a_moment(at), days))
+        show(reporting.forecast(work, a_moment_utc(at), days))
 
 
 @report.command("balance")

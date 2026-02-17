@@ -9,6 +9,7 @@ should leave the month exactly as it was.
 from __future__ import annotations
 
 from collections.abc import Iterator
+from datetime import UTC, datetime
 
 from fastapi import Request
 from sqlalchemy import Engine
@@ -37,3 +38,13 @@ def read_only(request: Request) -> Iterator[UnitOfWork]:
     """A unit of work for a route that only reads, which never commits."""
     with UnitOfWork(engine_of(request)) as work:
         yield work
+
+
+def moment_or_now(at: datetime | None) -> datetime:
+    """A moment given by a client, in utc, or now.
+
+    Every report route wanted this and each wrote the same ternary. One of
+    them left the zone off, so a client passing a naive moment got a different
+    answer from one passing the same moment with a Z on it.
+    """
+    return at.astimezone(UTC) if at else datetime.now(UTC)

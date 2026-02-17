@@ -11,12 +11,12 @@ to lift one rather than a patch on the embargo itself.
 
 from __future__ import annotations
 
-from datetime import UTC, date, datetime
+from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, Query, status
 from pydantic import BaseModel, ConfigDict
 
-from drawbarline.api.deps import read_only, unit_of_work
+from drawbarline.api.deps import moment_or_now, read_only, unit_of_work
 from drawbarline.embargo import Embargo
 from drawbarline.lading import Commodity, Lading, Stcc
 from drawbarline.marks import CarMark, ReportingMark
@@ -258,7 +258,7 @@ def switch_list(
         if not industry:
             raise SwitchError("an order is written as car=industry", given=one)
         orders.append((CarMark.parse(car), industry.strip().upper()))
-    moment = at.astimezone(UTC) if at else datetime.now(UTC)
+    moment = moment_or_now(at)
     found = plan(
         work.events.log(),
         work.customers.register(),

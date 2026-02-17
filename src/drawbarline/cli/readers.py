@@ -13,7 +13,7 @@ where the user cannot see a schema, so the error message is the schema.
 from __future__ import annotations
 
 import csv
-from datetime import date, datetime, time
+from datetime import UTC, date, datetime, time
 from pathlib import Path
 
 import click
@@ -65,6 +65,18 @@ def a_time(text: str) -> time:
         return datetime.strptime(text.strip(), "%H:%M").time()
     except ValueError as bad:
         raise click.ClickException(f"{text!r} is not a time, write it as {CLOCK_FORM}") from bad
+
+
+def a_moment_utc(text: str | None) -> datetime:
+    """A day given as yyyy-mm-dd read as midnight utc, or now.
+
+    Four commands wanted this and each wrote it out. Two of them forgot the
+    zone and produced a naive datetime, which every clock in the package
+    refuses, so the command failed on an argument it had accepted.
+    """
+    if text is None:
+        return datetime.now(UTC)
+    return datetime.combine(a_date(text), datetime.min.time(), tzinfo=UTC)
 
 
 def rows_of(path: Path) -> list[dict[str, str]]:

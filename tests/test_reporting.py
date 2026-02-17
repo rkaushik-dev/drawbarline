@@ -167,13 +167,17 @@ def test_every_line_fits_the_paper(worked):
         assert len(line) <= 80
 
 
-def test_a_moment_reads_as_midnight_utc():
-    from drawbarline.cli.reports import a_moment
+def test_the_wire_and_the_terminal_read_a_moment_the_same_way():
+    from drawbarline.api.deps import moment_or_now
+    from drawbarline.cli.readers import a_moment_utc
 
-    assert a_moment("2025-01-14") == datetime(2025, 1, 14, tzinfo=utc(2025, 1, 1).tzinfo)
+    day = datetime(2025, 1, 14, tzinfo=utc(2025, 1, 1).tzinfo)
+    assert a_moment_utc("2025-01-14") == moment_or_now(day)
 
 
-def test_a_moment_of_nothing_is_now():
-    from drawbarline.cli.reports import a_moment
+def test_a_moment_of_nothing_is_now_on_both_sides():
+    from drawbarline.api.deps import moment_or_now
+    from drawbarline.cli.readers import a_moment_utc
 
-    assert a_moment(None) is not None
+    assert a_moment_utc(None) is not None
+    assert moment_or_now(None) is not None

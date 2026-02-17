@@ -17,7 +17,7 @@ from datetime import UTC, date, datetime
 from fastapi import APIRouter, Depends
 
 from drawbarline import reporting
-from drawbarline.api.deps import read_only
+from drawbarline.api.deps import moment_or_now, read_only
 from drawbarline.api.routes.settlement import a_month
 from drawbarline.persistence.uow import UnitOfWork
 
@@ -77,7 +77,7 @@ def interchange_crossings(month: str, work: UnitOfWork = Depends(read_only)) -> 
 @router.get("/onhand", response_model=list[str])
 def onhand(at: datetime | None = None, work: UnitOfWork = Depends(read_only)) -> list[str]:
     """Every car we have taken and not handed back."""
-    return reporting.on_hand(work, at.astimezone(UTC) if at else datetime.now(UTC))
+    return reporting.on_hand(work, moment_or_now(at))
 
 
 @router.get("/age", response_model=list[str])
@@ -103,7 +103,7 @@ def repairs(
 @router.get("/shop", response_model=list[str])
 def shop(at: datetime | None = None, work: UnitOfWork = Depends(read_only)) -> list[str]:
     """Which cars are bad ordered and how long they have been down."""
-    return reporting.shop(work, at.astimezone(UTC) if at else datetime.now(UTC))
+    return reporting.shop(work, moment_or_now(at))
 
 
 @router.get("/forecast", response_model=list[str])
@@ -113,7 +113,7 @@ def forecast(
     work: UnitOfWork = Depends(read_only),
 ) -> list[str]:
     """What the cars standing here cost a day if nothing moves."""
-    moment = at.astimezone(UTC) if at else datetime.now(UTC)
+    moment = moment_or_now(at)
     return reporting.forecast(work, moment, days)
 
 
