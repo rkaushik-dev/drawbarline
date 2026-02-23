@@ -18,14 +18,17 @@ from __future__ import annotations
 
 import sys
 from dataclasses import replace
+from datetime import UTC, datetime
 from pathlib import Path
 
 import click
 
 from drawbarline import __version__
+from drawbarline.cli.readers import a_date
 from drawbarline.config import LEVELS, Settings, from_environment
 from drawbarline.config import names as config_names
 from drawbarline.errors import DrawbarlineError
+from drawbarline.health import examine, ready
 from drawbarline.logs import configure
 from drawbarline.persistence.base import create_all, make_engine
 from drawbarline.persistence.numbering import SERIES
@@ -145,3 +148,21 @@ def run() -> int:
 
 if __name__ == "__main__":
     sys.exit(run())
+
+
+@cli.command()
+@click.option("--on", default=None, help="The day to check against. Today by default.")
+@pass_context
+def doctor(ctx: Context, on: str | None) -> None:
+    """Whether these books are ready to be worked."""
+    day = a_date(on) if on else datetime.now(UTC).date()
+    with ctx.work() as work:
+        findings = examine(work, day)
+    for finding in findings:
+        click.echo(str(finding))
+    click.echo("")
+    if ready(findings):
+        click.echo("ready to work")
+        return
+    click.echo("not ready, see the lines marked bad", err=True)
+    raise SystemExit(1)
