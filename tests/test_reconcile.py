@@ -97,7 +97,9 @@ def test_the_tolerance_can_be_tightened():
 
 
 def test_a_negative_tolerance_is_refused():
-    with pytest.raises(ValueError):
+    from drawbarline.interchange.reconcile import ReconcileError
+
+    with pytest.raises(ReconcileError):
         compare([], [], tolerance=timedelta(minutes=-1))
 
 

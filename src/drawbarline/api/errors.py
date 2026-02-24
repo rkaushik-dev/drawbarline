@@ -45,6 +45,7 @@ from drawbarline.fleet.car import CarRecordError
 from drawbarline.fleet.ownership import OwnershipError
 from drawbarline.fleet.stencil import StencilError
 from drawbarline.hazmat import HazmatError
+from drawbarline.interchange.reconcile import ReconcileError
 from drawbarline.interchange.sheet import SheetError
 from drawbarline.lading import LadingError
 from drawbarline.measure import MeasureError
@@ -87,6 +88,7 @@ STATUS_FOR: dict[type[DrawbarlineError], int] = {
     StencilError: UNPROCESSABLE,
     LadingError: UNPROCESSABLE,
     SheetError: UNPROCESSABLE,
+    ReconcileError: UNPROCESSABLE,
     HazmatError: UNPROCESSABLE,
     ClearanceError: UNPROCESSABLE,
     ScaleError: UNPROCESSABLE,

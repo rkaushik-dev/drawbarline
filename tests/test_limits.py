@@ -109,7 +109,9 @@ def test_the_helper_passes_what_fits():
 
 
 def test_the_helper_names_the_field_that_does_not_fit():
-    with pytest.raises(ValueError) as caught:
+    from drawbarline.errors import ConfigurationError
+
+    with pytest.raises(ConfigurationError) as caught:
         limits.fits("x" * 200, limits.NOTE, "a note")
     assert "a note" in str(caught.value)
     assert str(limits.NOTE) in str(caught.value)

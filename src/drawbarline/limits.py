@@ -13,6 +13,8 @@ fits on the form.
 
 from __future__ import annotations
 
+from drawbarline.errors import ConfigurationError
+
 # What somebody writes on an event to explain a correction.
 NOTE = 120
 
@@ -48,7 +50,9 @@ def within(text: str, cap: int) -> bool:
 
 
 def fits(text: str, cap: int, what: str) -> str:
-    """Return the text, or say which field it does not fit."""
+    """Hand the text back, or say which field it does not fit."""
     if not within(text, cap):
-        raise ValueError(f"{what} is {len(text)} characters and the field holds {cap}")
+        raise ConfigurationError(
+            "that does not fit the field", field=what, length=len(text), holds=cap
+        )
     return text

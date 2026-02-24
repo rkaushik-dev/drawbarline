@@ -49,6 +49,10 @@ class EventIn(BaseModel):
 
     @model_validator(mode="after")
     def one_clock_or_the_other(self) -> EventIn:
+        # Pydantic wants a ValueError here specifically. It turns it into the
+        # framework's own unprocessable body response, which is the right
+        # answer for a body that is malformed rather than for a railroading
+        # rule that was broken.
         if (self.local is None) == (self.moment is None):
             raise ValueError("give either a local reading or a moment, not both")
         return self
@@ -114,9 +118,10 @@ def event_of(filing: EventIn) -> Event:
         if filing.local.tzinfo is not None:
             raise EventError("a local reading carries no zone", station=station)
         when = to_utc(drawbar_line().station(station), filing.local, second_pass=filing.second_pass)
-    else:
-        assert filing.moment is not None
+    elif filing.moment is not None:
         when = require_aware(filing.moment, "moment")
+    else:
+        raise EventError("no clock reading and no moment", car=filing.car)
     return Event(
         kind=kind_named(filing.kind),
         car=CarMark.parse(filing.car),

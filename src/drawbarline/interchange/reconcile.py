@@ -24,10 +24,17 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import timedelta
 
+from drawbarline.errors import DrawbarlineError
 from drawbarline.events.record import Event
 from drawbarline.marks import CarMark
 
 TOLERANCE = timedelta(minutes=30)
+
+
+class ReconcileError(DrawbarlineError):
+    """A comparison cannot be made as asked."""
+
+    code = "reconcile"
 
 
 def key_of(event: Event) -> tuple[CarMark, str, str, str]:
@@ -95,7 +102,7 @@ def compare(
 ) -> Reconciliation:
     """Set two records of the same junction and month against each other."""
     if tolerance < timedelta(0):
-        raise ValueError("a tolerance does not run backwards")
+        raise ReconcileError("a tolerance does not run backwards", given=str(tolerance))
 
     mine: dict[tuple, list[Event]] = defaultdict(list)
     for event in ours:
