@@ -94,11 +94,19 @@ class EventRepository:
         return self.session.execute(select(func.max(EventRow.happened))).scalar()
 
     def log(self) -> EventLog:
-        """Build the in memory log the close and the reports work against."""
+        """Build the in memory log the close and the reports work against.
+
+        One query. This used to ask for the distinct cars and then read each
+        car's stream, which is a query a car, and a close reads the whole log
+        four times. On a month with three hundred cars that was twelve hundred
+        round trips to answer a question one select answers.
+        """
         found = EventLog()
-        for car in self.cars():
-            for event in self.stream(car):
-                found.record(event)
+        rows = self.session.execute(
+            select(EventRow).order_by(EventRow.car_mark, EventRow.happened)
+        ).scalars()
+        for row in rows:
+            found.record(event_from_row(row))
         return found
 
     def __len__(self) -> int:
