@@ -12,10 +12,15 @@ worth having.
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import click
 
 from drawbarline.cli.main import Context, cli, pass_context
 from drawbarline.cli.readers import a_date, a_month
+from drawbarline.export import counts
+from drawbarline.export import month as month_bundle
 from drawbarline.marks import ReportingMark
 from drawbarline.service import UNSIGNED, reopen_period, run_close
 from drawbarline.settlement.statement import cut
@@ -115,3 +120,29 @@ def reopen(ctx: Context, month: str, on: str, reason: str, actor: str) -> None:
         reopen_period(work, period, on=a_date(on), reason=reason, actor=actor)
         work.commit()
     click.echo(f"reopened {period}")
+
+
+@cli.command("export")
+@click.argument("month")
+@click.option(
+    "--out",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=None,
+    help="Where to write it. Standard output by default.",
+)
+@pass_context
+def export(ctx: Context, month: str, out: Path | None) -> None:
+    """Write a whole month as json, for the auditors."""
+    period = a_month(month)
+    with ctx.work() as work:
+        bundle = month_bundle(work, period)
+    text = json.dumps(bundle, indent=2, sort_keys=True) + "\n"
+    if out is None:
+        click.echo(text, nl=False)
+        return
+    out.write_text(text, encoding="utf-8")
+    found = counts(bundle)
+    click.echo(
+        f"wrote {period} to {out.name}: "
+        + ", ".join(f"{value} {name}" for name, value in found.items())
+    )
