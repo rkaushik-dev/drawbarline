@@ -25,6 +25,7 @@ from drawbarline.persistence.models.repairs import (
     LaborRateRow,
     PriceLineRow,
 )
+from drawbarline.persistence.repositories.counting import count_of
 from drawbarline.repairs.codes import JobCode
 from drawbarline.repairs.pricing import (
     Depreciation,
@@ -140,4 +141,4 @@ class RepairPricingRepository:
         return self.labor_rates().rate_for(road, on)
 
     def __len__(self) -> int:
-        return len(list(self.session.execute(select(PriceLineRow.id)).scalars()))
+        return count_of(self.session, PriceLineRow.id)

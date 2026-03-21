@@ -28,6 +28,7 @@ from drawbarline.marks import CarMark
 from drawbarline.persistence.mappers.events import event_from_row, row_from_event
 from drawbarline.persistence.models.events import EventRow
 from drawbarline.persistence.models.fleet import CarRow
+from drawbarline.persistence.repositories.counting import count_of
 
 
 class EventRepository:
@@ -110,4 +111,4 @@ class EventRepository:
         return found
 
     def __len__(self) -> int:
-        return int(self.session.execute(select(func.count(EventRow.id))).scalar() or 0)
+        return count_of(self.session, EventRow.id)

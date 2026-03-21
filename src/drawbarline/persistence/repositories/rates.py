@@ -19,6 +19,7 @@ from drawbarline.errors import RateError
 from drawbarline.fleet.aar import CarTypeCode
 from drawbarline.persistence.mappers.rates import band_from_row, row_from_band
 from drawbarline.persistence.models.rates import RateBandRow
+from drawbarline.persistence.repositories.counting import count_of
 
 
 class RateRepository:
@@ -78,4 +79,4 @@ class RateRepository:
         return table
 
     def __len__(self) -> int:
-        return len(list(self.session.execute(select(RateBandRow.id)).scalars()))
+        return count_of(self.session, RateBandRow.id)

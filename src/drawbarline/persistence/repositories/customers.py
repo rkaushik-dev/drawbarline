@@ -21,6 +21,7 @@ from drawbarline.customers import (
 )
 from drawbarline.errors import ConfigurationError
 from drawbarline.persistence.models.customers import IndustryRow, ShipperRow
+from drawbarline.persistence.repositories.counting import count_of
 
 
 def days_to_text(days: frozenset[str]) -> str:
@@ -127,4 +128,4 @@ class CustomerRepository:
         return register
 
     def __len__(self) -> int:
-        return len(list(self.session.execute(select(IndustryRow.code)).scalars()))
+        return count_of(self.session, IndustryRow.code)

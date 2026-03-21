@@ -27,6 +27,7 @@ from drawbarline.persistence.models.cards import (
     ResolutionRow,
 )
 from drawbarline.persistence.models.fleet import CarRow
+from drawbarline.persistence.repositories.counting import count_of
 from drawbarline.repairs.card import Defect, RepairCard
 from drawbarline.repairs.codes import JobCode, Responsibility, WhyMade
 from drawbarline.repairs.objection import (
@@ -209,4 +210,4 @@ class CardRepository:
         return Outcome[row.resolution.outcome]
 
     def __len__(self) -> int:
-        return len(list(self.session.execute(select(RepairCardRow.number)).scalars()))
+        return count_of(self.session, RepairCardRow.number)

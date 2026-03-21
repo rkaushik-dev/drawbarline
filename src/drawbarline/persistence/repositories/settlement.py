@@ -25,6 +25,7 @@ from drawbarline.persistence.models.settlement import (
     PostingRow,
     ReopeningRow,
 )
+from drawbarline.persistence.repositories.counting import count_of
 from drawbarline.settlement.ledger import Ledger, Posting, PostingKind
 from drawbarline.settlement.period import Period, PeriodRegister
 
@@ -158,4 +159,4 @@ class LedgerRepository:
         return found
 
     def __len__(self) -> int:
-        return len(self.postings())
+        return count_of(self.session, PostingRow.id)

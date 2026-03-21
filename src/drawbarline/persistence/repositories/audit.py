@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from drawbarline.audit import Action, AuditTrail, Entry
 from drawbarline.persistence.models.audit import AuditRow
+from drawbarline.persistence.repositories.counting import count_of
 
 
 def entry_from_row(row: AuditRow) -> Entry:
@@ -92,4 +93,4 @@ class AuditRepository:
         return found
 
     def __len__(self) -> int:
-        return len(list(self.session.execute(select(AuditRow.id)).scalars()))
+        return count_of(self.session, AuditRow.id)

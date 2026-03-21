@@ -18,6 +18,7 @@ from drawbarline.distribution import CarOrder, DistributionError
 from drawbarline.fleet.aar import CarKind
 from drawbarline.persistence.models.customers import IndustryRow, ShipperRow
 from drawbarline.persistence.models.orders import CarOrderRow
+from drawbarline.persistence.repositories.counting import count_of
 
 
 def order_from_row(row: CarOrderRow) -> CarOrder:
@@ -118,4 +119,4 @@ class OrderRepository:
         return {row.code: row.station for row in rows}
 
     def __len__(self) -> int:
-        return len(list(self.session.execute(select(CarOrderRow.number)).scalars()))
+        return count_of(self.session, CarOrderRow.number)

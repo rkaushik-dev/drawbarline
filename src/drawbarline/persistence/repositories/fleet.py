@@ -32,6 +32,7 @@ from drawbarline.persistence.mappers.fleet import (
     update_row_from_car,
 )
 from drawbarline.persistence.models.fleet import CarRow, RetirementRow
+from drawbarline.persistence.repositories.counting import count_of
 
 
 class FleetRepository:
@@ -125,4 +126,4 @@ class FleetRepository:
         return register
 
     def __len__(self) -> int:
-        return len(self.all())
+        return count_of(self.session, CarRow.mark)

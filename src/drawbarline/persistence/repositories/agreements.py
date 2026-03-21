@@ -17,6 +17,7 @@ from drawbarline.agreements import AgreementError, InterchangeAgreement
 from drawbarline.fleet.aar import CarKind
 from drawbarline.marks import ReportingMark
 from drawbarline.persistence.models.agreements import AgreementRow
+from drawbarline.persistence.repositories.counting import count_of
 
 
 def kinds_to_text(kinds: frozenset[CarKind]) -> str:
@@ -111,4 +112,4 @@ class AgreementRepository:
         return [agreement_from_row(row) for row in rows]
 
     def __len__(self) -> int:
-        return len(list(self.session.execute(select(AgreementRow.id)).scalars()))
+        return count_of(self.session, AgreementRow.id)

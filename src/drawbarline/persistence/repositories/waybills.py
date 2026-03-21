@@ -18,6 +18,7 @@ from drawbarline.lading import Commodity, Lading, Stcc
 from drawbarline.marks import CarMark
 from drawbarline.persistence.models.fleet import CarRow
 from drawbarline.persistence.models.waybill import RouteStopRow, WaybillRow
+from drawbarline.persistence.repositories.counting import count_of
 from drawbarline.waybill import Waybill, WaybillError
 
 
@@ -103,4 +104,4 @@ class WaybillRepository:
         return [waybill_from_row(row) for row in rows]
 
     def __len__(self) -> int:
-        return len(list(self.session.execute(select(WaybillRow.number)).scalars()))
+        return count_of(self.session, WaybillRow.number)

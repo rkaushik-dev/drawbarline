@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from drawbarline.embargo import Embargo, EmbargoError, EmbargoRegister
 from drawbarline.persistence.models.embargo import EmbargoRow
+from drawbarline.persistence.repositories.counting import count_of
 
 
 def embargo_from_row(row: EmbargoRow) -> Embargo:
@@ -87,4 +88,4 @@ class EmbargoRepository:
         return found
 
     def __len__(self) -> int:
-        return len(list(self.session.execute(select(EmbargoRow.number)).scalars()))
+        return count_of(self.session, EmbargoRow.number)
