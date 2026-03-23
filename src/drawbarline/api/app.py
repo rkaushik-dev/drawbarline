@@ -24,6 +24,7 @@ from drawbarline.api.routes import (
     events,
     fleet,
     operations,
+    orders,
     repairs,
     reports,
     settlement,
@@ -49,6 +50,7 @@ def make_app(engine: Engine) -> FastAPI:
     app.include_router(repairs.router)
     app.include_router(operations.router)
     app.include_router(audit.router)
+    app.include_router(orders.router)
 
     @app.get("/health", tags=["service"])
     def health() -> dict[str, str]:
