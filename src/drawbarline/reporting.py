@@ -148,3 +148,37 @@ def annual(work: UnitOfWork, year: int, road: str | None = None) -> list[str]:
     """The year on one page, for the whole pool or for one road."""
     mark = ReportingMark.parse(road) if road else None
     return annual_report(work.ledger.ledger(), year, mark)
+
+
+CLOSE_PACKAGE = (
+    ("trial balance", lambda work, period: trial_balance(work, period)),
+    ("car hire", lambda work, period: car_hire(work, period)),
+    ("demurrage", lambda work, period: demurrage(work, period, by_shipper=True)),
+    ("repairs", lambda work, period: repairs(work, period)),
+    ("interchange", lambda work, period: interchange(work, period)),
+    ("utilisation", lambda work, period: utilisation(work, period)),
+)
+
+
+def close_package(work: UnitOfWork, period: Period) -> list[str]:
+    """Everything that goes out after a close, in one document.
+
+    The office used to run six commands and staple the output together, in a
+    different order each month. The order is fixed here and the trial balance
+    is first, because a month that does not balance is a month nobody should
+    read the rest of.
+    """
+    lines: list[str] = []
+    for name, run in CLOSE_PACKAGE:
+        if lines:
+            lines.append("")
+            lines.append("-" * 60)
+            lines.append("")
+        del name
+        lines.extend(run(work, period))
+    return lines
+
+
+def package_sections() -> list[str]:
+    """What is in the package, for anybody checking one arrived whole."""
+    return [name for name, _ in CLOSE_PACKAGE]

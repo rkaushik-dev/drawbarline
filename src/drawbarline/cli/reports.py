@@ -146,3 +146,12 @@ def annual(ctx: Context, year: int, road: str | None) -> None:
     """The year on one page."""
     with ctx.work() as work:
         show(reporting.annual(work, year, road))
+
+
+@report.command("package")
+@click.argument("month")
+@pass_context
+def package(ctx: Context, month: str) -> None:
+    """Everything that goes out after a close, in one document."""
+    with ctx.work() as work:
+        show(reporting.close_package(work, a_month(month)))

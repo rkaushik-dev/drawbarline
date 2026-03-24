@@ -127,3 +127,16 @@ def balance(month: str, by_kind: bool = False, work: UnitOfWork = Depends(read_o
 def annual(year: int, road: str | None = None, work: UnitOfWork = Depends(read_only)) -> list[str]:
     """The year on one page."""
     return reporting.annual(work, year, road)
+
+
+@router.get("/package/{month}", response_model=list[str])
+def package(month: str, work: UnitOfWork = Depends(read_only)) -> list[str]:
+    """Everything that goes out after a close, in one document."""
+    return reporting.close_package(work, a_month(month))
+
+
+@router.get("/package/{month}/sections", response_model=list[str])
+def package_sections(month: str) -> list[str]:
+    """What is in the package, for anybody checking one arrived whole."""
+    del month
+    return reporting.package_sections()
