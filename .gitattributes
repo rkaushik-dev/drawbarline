@@ -1,0 +1,9 @@
+# Every text file stays LF in the index and in the checkout, on every platform.
+# The suite runs on windows as well as ubuntu, and several tests compare
+# exported bytes directly, so a CRLF checkout fails them for no real reason.
+* text=auto eol=lf
+
+# Alembic writes its revisions from a template and the default heuristics can
+# read templated files as generated. They are linted, typed and tested like
+# everything else here, so say so rather than letting a guess decide.
+migrations/** linguist-generated=false
