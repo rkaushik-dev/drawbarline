@@ -1,7 +1,10 @@
-# Every text file stays LF in the index and in the checkout, on every platform.
-# The suite runs on windows as well as ubuntu, and several tests compare
-# exported bytes directly, so a CRLF checkout fails them for no real reason.
+# Every text file stays LF in the index and in the checkout, on every platform. Several tests
+# compare exported bytes directly, so a CRLF checkout would fail them for no real reason.
 * text=auto eol=lf
+gradlew text eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.jar binary
 
 # Alembic writes its revisions from a template and the default heuristics can
 # read templated files as generated. They are linted, typed and tested like
