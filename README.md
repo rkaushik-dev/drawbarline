@@ -1,5 +1,11 @@
 # drawbarline
 
+[![CI](https://github.com/rkaushik-dev/drawbarline/actions/workflows/ci.yml/badge.svg)](https://github.com/rkaushik-dev/drawbarline/actions/workflows/ci.yml)
+![Java 21](https://img.shields.io/badge/Java-21-007396)
+![Spring Boot 3.5](https://img.shields.io/badge/Spring%20Boot-3.5-6DB33F)
+![Gradle](https://img.shields.io/badge/build-Gradle-02303A)
+![JUnit 5](https://img.shields.io/badge/tests-JUnit%205-25A162)
+
 Car hire, demurrage and interchange settlement for a short line railroad.
 
 The road runs from the ore dock at Escanaba down the west shore of Green Bay
