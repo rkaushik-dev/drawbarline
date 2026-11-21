@@ -46,10 +46,12 @@ import io.github.rkaushikdev.drawbarline.waybill.WaybillError;
 import io.github.rkaushikdev.drawbarline.weight.WeightError;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Path;
+import java.lang.reflect.RecordComponent;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -215,7 +217,8 @@ public final class Errors {
                 problems.add(new Problem(Problem.VALUE_ERROR, List.of("body"), error.getDefaultMessage()));
             }
         }
-        return unprocessable(problems);
+        return unprocessable(
+                inDeclarationOrder(problems, 1, failure.getParameter().getParameterType()));
     }
 
     @ExceptionHandler(HandlerMethodValidationException.class)
@@ -275,6 +278,24 @@ public final class Errors {
     private static ResponseEntity<Map<String, Object>> unprocessable(List<Problem> problems) {
         return ResponseEntity.status(UNPROCESSABLE)
                 .body(Map.of("detail", problems.stream().map(Problem::asMap).toList()));
+    }
+
+    /**
+     * Problems in the order the shape declares its fields, which is the order a caller reads the
+     * shape in, rather than the order the checks happened to run. The field name is looked for at
+     * {@code depth} in each location; a problem about the body as a whole comes first.
+     */
+    static List<Problem> inDeclarationOrder(List<Problem> problems, int depth, Class<?> shape) {
+        List<String> fields = new ArrayList<>();
+        if (shape.isRecord()) {
+            for (RecordComponent component : shape.getRecordComponents()) {
+                fields.add(snake(component.getName()));
+            }
+        }
+        List<Problem> sorted = new ArrayList<>(problems);
+        sorted.sort(Comparator.comparingInt(
+                one -> one.loc().size() > depth ? fields.indexOf(one.loc().get(depth)) : -1));
+        return sorted;
     }
 
     /** Where Jackson stopped reading a body and why, in the words a caller is shown. */
