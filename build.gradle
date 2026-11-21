@@ -74,8 +74,16 @@ tasks.withType(Jar).configureEach {
 
 tasks.named('test', Test) {
 	useJUnitPlatform()
-	// The build, workflow and source checks read files relative to the project root.
+	// The build, workflow and source checks read files relative to the project root, and they read
+	// these files as text, so a change to one of them has to run the suite again.
 	workingDir = projectDir
+	inputs.files('build.gradle', 'settings.gradle', 'README.md', '.github/workflows/ci.yml',
+			'gradle/wrapper/gradle-wrapper.properties')
+			.withPropertyName('projectFiles')
+			.withPathSensitivity(PathSensitivity.RELATIVE)
+	inputs.files(fileTree('src/main/java'), fileTree('src/test/java'))
+			.withPropertyName('sources')
+			.withPathSensitivity(PathSensitivity.RELATIVE)
 	maxParallelForks = 1
 	maxHeapSize = '1g'
 	// Mockito's agent appends to the boot class path; without class-data sharing the JVM has
