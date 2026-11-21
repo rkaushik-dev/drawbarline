@@ -13,17 +13,5 @@ out/
 *.trace.db
 *.lock.db
 
-__pycache__/
-*.py[cod]
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.coverage
-htmlcov/
-dist/
-*.egg-info/
-.venv/
-venv/
-*.db
-*.sqlite3
+# Local settings
 .env
