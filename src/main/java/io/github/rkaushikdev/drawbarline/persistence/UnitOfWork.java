@@ -84,6 +84,31 @@ public final class UnitOfWork implements AutoCloseable {
         return new RateRepository(session());
     }
 
+    /** The account with each road. */
+    public LedgerRepository ledger() {
+        return new LedgerRepository(session());
+    }
+
+    /** The months closed to posting, and the reopenings. */
+    public PeriodRepository periods() {
+        return new PeriodRepository(session());
+    }
+
+    /** The shippers and their industry track. */
+    public CustomerRepository customers() {
+        return new CustomerRepository(session());
+    }
+
+    /** The demurrage tariffs and the average agreements. */
+    public TariffRepository tariffs() {
+        return new TariffRepository(session());
+    }
+
+    /** The waybills issued. */
+    public WaybillRepository waybills() {
+        return new WaybillRepository(session());
+    }
+
     /** Whether this unit has committed since it was opened. */
     public boolean committed() {
         return committed;

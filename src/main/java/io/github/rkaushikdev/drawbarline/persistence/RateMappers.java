@@ -1,7 +1,5 @@
 package io.github.rkaushikdev.drawbarline.persistence;
 
-import io.github.rkaushikdev.drawbarline.Details;
-import io.github.rkaushikdev.drawbarline.RateError;
 import io.github.rkaushikdev.drawbarline.carhire.Band;
 import io.github.rkaushikdev.drawbarline.carhire.Rate;
 import io.github.rkaushikdev.drawbarline.persistence.models.RateBandRow;
@@ -31,15 +29,7 @@ public final class RateMappers {
                 band.fromAge(),
                 band.toAge(),
                 band.effective(),
-                column(band.rate().hourlyTenths(), "hourly_tenths"),
-                column(band.rate().mileageMills(), "mileage_mills"));
-    }
-
-    /** A rate as its column holds it, refusing one too large to store rather than cutting it short. */
-    private static int column(long value, String what) {
-        if (value > Integer.MAX_VALUE) {
-            throw new RateError("that rate is too large to file", Details.of("column", what, "value", value));
-        }
-        return (int) value;
+                Stored.whole(band.rate().hourlyTenths(), "hourly_tenths"),
+                Stored.whole(band.rate().mileageMills(), "mileage_mills"));
     }
 }

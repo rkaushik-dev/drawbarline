@@ -103,7 +103,7 @@ class RepositoryRatesTest {
     void aRateTooLargeForItsColumnIsRefusedRatherThanCut() {
         Band band = new Band(HOPPER, 0, 9, JULY_2024, new Rate(Integer.MAX_VALUE + 1L, 1210));
         assertThatThrownBy(() -> RateMappers.rowFromBand(band))
-                .isInstanceOf(RateError.class)
+                .isInstanceOf(StoreError.class)
                 .hasMessageContaining("hourly_tenths");
     }
 
