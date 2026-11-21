@@ -30,6 +30,8 @@ dependencies {
 	implementation 'org.flywaydb:flyway-core'
 	implementation 'com.h2database:h2'
 	implementation 'info.picocli:picocli:4.7.7'
+	// Logs configures Logback itself rather than through Boot.
+	implementation 'org.springframework.boot:spring-boot-starter-logging'
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.17'
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
@@ -56,13 +58,16 @@ springBoot {
 	mainClass = application.mainClass
 }
 
-tasks.named('jar', Jar) {
+// Every jar the build makes, the plain one the distribution runs and the Boot jar alike, says what
+// it is, which release it is and under what licence it ships.
+tasks.withType(Jar).configureEach {
 	manifest {
 		attributes(
 				'Implementation-Title': project.name,
 				'Implementation-Version': project.version,
 				'Implementation-Vendor': 'rkaushik-dev',
-				'Implementation-URL': 'https://github.com/rkaushik-dev/drawbarline'
+				'Implementation-URL': 'https://github.com/rkaushik-dev/drawbarline',
+				'License': 'Proprietary'
 				)
 	}
 }
@@ -89,6 +94,8 @@ jacoco {
 
 tasks.named('jacocoTestReport', JacocoReport) {
 	dependsOn tasks.named('test')
+	// Coverage is of the application, never of the suite measuring it.
+	sourceSets sourceSets.main
 	reports {
 		xml.required = true
 		html.required = true
@@ -97,10 +104,19 @@ tasks.named('jacocoTestReport', JacocoReport) {
 
 tasks.named('jacocoTestCoverageVerification', JacocoCoverageVerification) {
 	dependsOn tasks.named('test')
+	sourceSets sourceSets.main
+	// The floors sit just under where the suite has been since the persistence layer landed, so
+	// losing real coverage fails the build rather than drifting. They live here and nowhere else,
+	// so the number is the same in the workflow and on a desk.
 	violationRules {
 		rule {
 			limit {
 				counter = 'LINE'
+				value = 'COVEREDRATIO'
+				minimum = 0.90
+			}
+			limit {
+				counter = 'BRANCH'
 				value = 'COVEREDRATIO'
 				minimum = 0.80
 			}

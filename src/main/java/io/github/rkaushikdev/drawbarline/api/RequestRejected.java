@@ -3,6 +3,7 @@ package io.github.rkaushikdev.drawbarline.api;
 import io.github.rkaushikdev.drawbarline.Details;
 import io.github.rkaushikdev.drawbarline.DrawbarlineError;
 import java.util.List;
+import java.util.Map;
 
 /**
  * A request that is not the shape its route takes: a field missing, a field nobody declared, a
@@ -29,6 +30,20 @@ public final class RequestRejected extends DrawbarlineError {
     /** A request with one thing wrong with it. */
     public RequestRejected(Problem problem) {
         this(List.of(problem));
+    }
+
+    /** A request refused as a whole, for a rule about the body rather than about one field. */
+    public RequestRejected(String message) {
+        this(message, Map.of());
+    }
+
+    /**
+     * A request refused as a whole, with the values behind the refusal. Its one problem is the
+     * sentence, at the body.
+     */
+    public RequestRejected(String message, Map<String, ?> context) {
+        super(message, context);
+        this.problems = List.of(new Problem(Problem.VALUE_ERROR, List.of("body"), message));
     }
 
     /** What was wrong, in the order it was found. */
