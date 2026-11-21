@@ -69,6 +69,21 @@ public final class UnitOfWork implements AutoCloseable {
         return new Numbering(session());
     }
 
+    /** The equipment register. */
+    public FleetRepository fleet() {
+        return new FleetRepository(session());
+    }
+
+    /** The event log. */
+    public EventRepository events() {
+        return new EventRepository(session());
+    }
+
+    /** The car hire rate schedule. */
+    public RateRepository rates() {
+        return new RateRepository(session());
+    }
+
     /** Whether this unit has committed since it was opened. */
     public boolean committed() {
         return committed;
