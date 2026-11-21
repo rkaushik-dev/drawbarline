@@ -109,6 +109,36 @@ public final class UnitOfWork implements AutoCloseable {
         return new WaybillRepository(session());
     }
 
+    /** The repair price master, the depreciation rules and the labor rates. */
+    public RepairPricingRepository repairPricing() {
+        return new RepairPricingRepository(session());
+    }
+
+    /** The repair cards and the exceptions against them. */
+    public CardRepository cards() {
+        return new CardRepository(session());
+    }
+
+    /** The audit trail. */
+    public AuditRepository audit() {
+        return new AuditRepository(session());
+    }
+
+    /** The embargoes, live or lifted. */
+    public EmbargoRepository embargoes() {
+        return new EmbargoRepository(session());
+    }
+
+    /** The car orders. */
+    public OrderRepository orders() {
+        return new OrderRepository(session());
+    }
+
+    /** The interchange agreements. */
+    public AgreementRepository agreements() {
+        return new AgreementRepository(session());
+    }
+
     /** Whether this unit has committed since it was opened. */
     public boolean committed() {
         return committed;

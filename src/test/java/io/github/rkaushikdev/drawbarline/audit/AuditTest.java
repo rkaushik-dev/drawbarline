@@ -6,10 +6,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.rkaushikdev.drawbarline.clock.Clock;
 import io.github.rkaushikdev.drawbarline.clock.ClockError;
+import io.github.rkaushikdev.drawbarline.persistence.Database;
+import io.github.rkaushikdev.drawbarline.persistence.TestDatabase;
+import io.github.rkaushikdev.drawbarline.persistence.UnitOfWork;
 import java.lang.reflect.RecordComponent;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class AuditTest {
@@ -149,5 +153,94 @@ class AuditTest {
     void anEmptyTrailHoldsNothing() {
         assertThat(new AuditTrail().size()).isZero();
         assertThat(new AuditTrail().actors()).isEmpty();
+    }
+
+    @Test
+    void theAuditTableIsOnTheMetadata() {
+        assertThat(Database.modelTables()).contains("audit");
+    }
+
+    @Test
+    void anEntrySurvivesATripThroughTheDatabase() {
+        Database books = TestDatabase.fresh();
+        try (UnitOfWork work = books.unitOfWork()) {
+            work.audit().record("rjs", Action.CLOSED_PERIOD, "2025-01", "monthly close", WHEN);
+            work.commit();
+        }
+        List<Entry> found;
+        try (UnitOfWork work = books.unitOfWork()) {
+            found = work.audit().entries();
+        }
+        assertThat(found.get(0).actor()).isEqualTo("rjs");
+        assertThat(found.get(0).action()).isSameAs(Action.CLOSED_PERIOD);
+        assertThat(found.get(0).at()).isEqualTo(WHEN);
+    }
+
+    @Test
+    void theNewestEntriesComeBackFirst() {
+        Database books = TestDatabase.fresh();
+        try (UnitOfWork work = books.unitOfWork()) {
+            work.audit().record("rjs", Action.CLOSED_PERIOD, "2025-01", WHEN);
+            work.audit().record("mkb", Action.CLOSED_PERIOD, "2025-02", WHEN.plus(Duration.ofDays(30)));
+            work.commit();
+        }
+        try (UnitOfWork work = books.unitOfWork()) {
+            assertThat(work.audit().entries()).extracting(Entry::subject).containsExactly("2025-02", "2025-01");
+        }
+    }
+
+    @Test
+    void aLimitTakesOnlyTheNewest() {
+        Database books = TestDatabase.fresh();
+        try (UnitOfWork work = books.unitOfWork()) {
+            for (int at = 0; at < 3; at++) {
+                work.audit().record("rjs", Action.CLOSED_PERIOD, "2025-0" + (at + 1), WHEN);
+            }
+            work.commit();
+        }
+        try (UnitOfWork work = books.unitOfWork()) {
+            assertThat(work.audit().entries(2)).hasSize(2);
+        }
+    }
+
+    @Test
+    void storedEntriesComeBackByActorAndAction() {
+        Database books = TestDatabase.fresh();
+        try (UnitOfWork work = books.unitOfWork()) {
+            work.audit().record("rjs", Action.CLOSED_PERIOD, "2025-01", WHEN);
+            work.audit().record("mkb", Action.RETIRED_CAR, "DBL 104207", WHEN);
+            work.commit();
+        }
+        try (UnitOfWork work = books.unitOfWork()) {
+            assertThat(work.audit().byActor("rjs")).hasSize(1);
+            assertThat(work.audit().ofAction(Action.RETIRED_CAR)).hasSize(1);
+            assertThat(work.audit().about("DBL 104207")).hasSize(1);
+        }
+    }
+
+    @Test
+    void theWholeTrailLoadsBack() {
+        Database books = TestDatabase.fresh();
+        try (UnitOfWork work = books.unitOfWork()) {
+            work.audit().record("rjs", Action.CLOSED_PERIOD, "2025-01", WHEN);
+            work.commit();
+        }
+        AuditTrail trail;
+        try (UnitOfWork work = books.unitOfWork()) {
+            trail = work.audit().trail();
+        }
+        assertThat(trail.size()).isEqualTo(1);
+        assertThat(trail.actors()).containsExactly("rjs");
+    }
+
+    @Test
+    void anEntryThatIsNotCommittedIsNotThere() {
+        Database books = TestDatabase.fresh();
+        try (UnitOfWork work = books.unitOfWork()) {
+            work.audit().record("rjs", Action.CLOSED_PERIOD, "2025-01", WHEN);
+        }
+        try (UnitOfWork work = books.unitOfWork()) {
+            assertThat(work.audit().size()).isZero();
+        }
     }
 }
