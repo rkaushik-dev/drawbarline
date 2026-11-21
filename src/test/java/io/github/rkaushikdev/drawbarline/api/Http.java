@@ -134,6 +134,11 @@ public final class Http {
             return JSON.convertValue(json(), new TypeReference<List<Map<String, Object>>>() {});
         }
 
+        /** An array field of a JSON object body as a list of maps. */
+        public List<Map<String, Object>> rowsOf(String field) {
+            return JSON.convertValue(json().get(field), new TypeReference<List<Map<String, Object>>>() {});
+        }
+
         /** A JSON array body as a list of strings. */
         public List<String> lines() {
             List<String> found = new ArrayList<>();
