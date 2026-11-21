@@ -17,6 +17,8 @@ import static io.github.rkaushikdev.drawbarline.support.Moves.released;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.rkaushikdev.drawbarline.marks.CarMark;
+import io.github.rkaushikdev.drawbarline.reports.InterchangeReport;
+import io.github.rkaushikdev.drawbarline.reports.OnHand;
 import io.github.rkaushikdev.drawbarline.support.Moves;
 import io.github.rkaushikdev.drawbarline.switching.Switching;
 import java.time.Instant;
@@ -127,6 +129,13 @@ class PositionsTest {
     void theWalkAgreesWithTheSwitchList() {
         EventLog log = aLog();
         assertThat(Switching.carsOnTrack(log, "ESCPAP1", NOW)).isEqualTo(onTrack(positions(log, NOW), "ESCPAP1"));
+    }
+
+    @Test
+    void theWalkAgreesWithTheOnHandReport() {
+        EventLog log = aLog();
+        assertThat(InterchangeReport.onHand(log, NOW).stream().map(OnHand::car).toList())
+                .isEqualTo(onLine(positions(log, NOW)));
     }
 
     @Test
