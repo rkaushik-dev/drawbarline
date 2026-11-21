@@ -5,6 +5,7 @@ import static io.github.rkaushikdev.drawbarline.support.Cars.aCar;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import io.github.rkaushikdev.drawbarline.api.Errors;
 import io.github.rkaushikdev.drawbarline.fleet.Car;
 import io.github.rkaushikdev.drawbarline.lading.Lading;
 import io.github.rkaushikdev.drawbarline.marks.CarMark;
@@ -199,5 +200,10 @@ class TrainTest {
     void theWheelReportShowsAnEmptyAsEmpty() {
         assertThat(Train.wheelReport(aConsist(1, false)))
                 .anySatisfy(line -> assertThat(line).contains("empty"));
+    }
+
+    @Test
+    void theConsistErrorHasADecidedStatus() {
+        assertThat(Errors.STATUS_FOR).containsKey(ConsistError.class);
     }
 }
