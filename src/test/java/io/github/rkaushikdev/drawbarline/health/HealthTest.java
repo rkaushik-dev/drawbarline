@@ -4,15 +4,22 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.rkaushikdev.drawbarline.persistence.Database;
 import io.github.rkaushikdev.drawbarline.persistence.Numbering;
+import io.github.rkaushikdev.drawbarline.support.Clerk;
+import io.github.rkaushikdev.drawbarline.support.Clerk.Ran;
 import io.github.rkaushikdev.drawbarline.support.Office;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class HealthTest {
 
     private static final LocalDate DAY = LocalDate.of(2025, 1, 14);
+
+    @TempDir
+    Path tmp;
 
     private static List<Finding> findingsOf(Database database) {
         return Health.examine(database, DAY);
@@ -112,5 +119,38 @@ class HealthTest {
     void everySeriesIsChecked() {
         Finding found = named(findingsOf(Office.empty()), "numbering");
         assertThat(found.detail()).isEqualTo(Numbering.SERIES.size() + " series open");
+    }
+
+    @Test
+    void theDoctorCommandSaysItIsReady() {
+        Ran found = Clerk.run(Clerk.books(tmp), "doctor", "--on", "2025-01-14");
+        assertThat(found.exitCode()).isZero();
+        assertThat(found.output()).contains("ready to work");
+    }
+
+    @Test
+    void theDoctorCommandStopsOnAFreshDatabase() {
+        Ran found = Clerk.run(Clerk.empty(tmp), "doctor", "--on", "2025-01-14");
+        assertThat(found.exitCode()).isNotZero();
+        assertThat(found.output()).contains("not ready");
+    }
+
+    @Test
+    void theDoctorCommandListsEveryCheck() {
+        Ran found = Clerk.run(Clerk.books(tmp), "doctor", "--on", "2025-01-14");
+        for (String check : List.of("schema", "numbering", "car hire rates", "fleet")) {
+            assertThat(found.output()).contains(check);
+        }
+    }
+
+    @Test
+    void theDoctorCommandDefaultsToToday() {
+        assertThat(Clerk.run(Clerk.books(tmp), "doctor").exitCode()).isZero();
+    }
+
+    @Test
+    void aDateThatCannotBeReadIsRefused() {
+        assertThat(Clerk.run(Clerk.books(tmp), "doctor", "--on", "tuesday").exitCode())
+                .isNotZero();
     }
 }

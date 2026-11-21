@@ -3,7 +3,9 @@ package io.github.rkaushikdev.drawbarline.reporting;
 import static io.github.rkaushikdev.drawbarline.clock.Clock.utc;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.github.rkaushikdev.drawbarline.api.Moments;
 import io.github.rkaushikdev.drawbarline.carhire.Band;
+import io.github.rkaushikdev.drawbarline.cli.Readers;
 import io.github.rkaushikdev.drawbarline.customers.Industry;
 import io.github.rkaushikdev.drawbarline.demurrage.Step;
 import io.github.rkaushikdev.drawbarline.demurrage.Tariff;
@@ -21,8 +23,11 @@ import io.github.rkaushikdev.drawbarline.support.Filings;
 import io.github.rkaushikdev.drawbarline.support.Moves;
 import io.github.rkaushikdev.drawbarline.support.Shippers;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
@@ -195,5 +200,17 @@ class ReportingTest {
         for (String line : linesOf(work -> Reporting.carHire(work, JANUARY))) {
             assertThat(line.length()).isLessThanOrEqualTo(80);
         }
+    }
+
+    @Test
+    void theWireAndTheTerminalReadAMomentTheSameWay() {
+        OffsetDateTime day = OffsetDateTime.of(2025, 1, 14, 0, 0, 0, 0, ZoneOffset.UTC);
+        assertThat(Readers.aMomentUtc(Optional.of("2025-01-14"))).isEqualTo(Moments.orNow(Optional.of(day)));
+    }
+
+    @Test
+    void aMomentOfNothingIsNowOnBothSides() {
+        assertThat(Readers.aMomentUtc(Optional.empty())).isNotNull();
+        assertThat(Moments.orNow(Optional.empty())).isNotNull();
     }
 }

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.rkaushikdev.drawbarline.clock.Clock;
+import io.github.rkaushikdev.drawbarline.config.Settings;
 import io.github.rkaushikdev.drawbarline.events.Event;
 import io.github.rkaushikdev.drawbarline.events.EventKind;
 import io.github.rkaushikdev.drawbarline.marks.CarMark;
@@ -15,24 +16,46 @@ import io.github.rkaushikdev.drawbarline.reference.Reference;
 import io.github.rkaushikdev.drawbarline.service.Service;
 import io.github.rkaushikdev.drawbarline.settlement.Period;
 import io.github.rkaushikdev.drawbarline.support.Cars;
+import io.github.rkaushikdev.drawbarline.support.Clerk;
+import io.github.rkaushikdev.drawbarline.support.Clerk.Ran;
 import io.github.rkaushikdev.drawbarline.support.Office;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class ExportTest {
 
     private static final Period JANUARY = new Period(2025, 1);
+
+    @TempDir
+    Path tmp;
 
     /**
      * The loaded railroad with a day of interchange on it, received at Escanaba at seven in the
      * morning and handed back at Marinette ten days later, and January closed by rjs.
      */
     private static Database closed() {
-        Database books = Office.loaded();
+        return closeJanuary(Office.loaded());
+    }
+
+    /** The same railroad and the same January, in a file of its own that the command line opens. */
+    private String closedBooks() {
+        String database = Clerk.books(tmp);
+        try (Database books = Database.open(new Settings().withDatabase(database))) {
+            closeJanuary(books);
+        }
+        return database;
+    }
+
+    private static Database closeJanuary(Database books) {
         Network line = Reference.drawbarLine();
         CarMark car = CarMark.parse("CN 400100");
         try (UnitOfWork work = books.unitOfWork()) {
@@ -162,5 +185,39 @@ class ExportTest {
         Map<String, Integer> found = Export.counts(bundleOf(closed()));
         assertThat(found.get("events")).isEqualTo(2);
         assertThat(found.get("postings")).isEqualTo(1);
+    }
+
+    @Test
+    void theExportCommandWritesToStandardOutput() throws JsonProcessingException {
+        Ran found = Clerk.run(closedBooks(), "export", "2025-01");
+        assertThat(found.exitCode()).isZero();
+        assertThat(new ObjectMapper().readTree(found.output()).get("period").asText())
+                .isEqualTo("2025-01");
+    }
+
+    @Test
+    void theExportCommandWritesAFile() throws IOException {
+        Path out = tmp.resolve("january.json");
+        Ran found = Clerk.run(closedBooks(), "export", "2025-01", "--out", out.toString());
+        assertThat(found.exitCode()).isZero();
+        assertThat(found.output()).contains("2 events");
+        assertThat(new ObjectMapper()
+                        .readTree(Files.readString(out, StandardCharsets.UTF_8))
+                        .get("period")
+                        .asText())
+                .isEqualTo("2025-01");
+    }
+
+    @Test
+    void aMonthThatCannotBeReadIsRefused() {
+        assertThat(Clerk.run(closedBooks(), "export", "january").exitCode()).isNotZero();
+    }
+
+    @Test
+    void exportingChangesNothing() {
+        String closed = closedBooks();
+        String before = Clerk.run(closed, "status").output();
+        Clerk.run(closed, "export", "2025-01");
+        assertThat(Clerk.run(closed, "status").output()).isEqualTo(before);
     }
 }

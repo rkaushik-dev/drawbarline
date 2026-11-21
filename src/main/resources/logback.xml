@@ -1,0 +1,14 @@
+<configuration>
+    <!-- The libraries say something only when it is a warning, on standard error, so a report
+         printed by the command line is never interleaved with the database driver starting up.
+         The application's own loggers are set up from the settings when a command starts. -->
+    <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
+        <target>System.err</target>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss} %-7level %logger %msg%n</pattern>
+        </encoder>
+    </appender>
+    <root level="WARN">
+        <appender-ref ref="STDERR"/>
+    </root>
+</configuration>
