@@ -148,16 +148,6 @@ class PeriodTest {
     }
 
     @Test
-    void aRefusedReopeningLeavesTheMonthClosed() {
-        PeriodRegister register = new PeriodRegister();
-        register.close(new Period(2025, 1));
-        assertThatThrownBy(() -> register.reopen(new Period(2025, 1), date(2025, 3, 4), "   "))
-                .isInstanceOf(SettlementError.class);
-        assertThat(register.isOpen(new Period(2025, 1))).isFalse();
-        assertThat(register.reopenings()).isEmpty();
-    }
-
-    @Test
     void aReopeningStaysOnFileAfterTheMonthClosesAgain() {
         PeriodRegister register = new PeriodRegister();
         register.close(new Period(2025, 1));

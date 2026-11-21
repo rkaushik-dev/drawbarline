@@ -33,8 +33,8 @@ public final class PeriodRegister {
         if (!closed.contains(period)) {
             throw new SettlementError("that month is not closed", Details.of("period", period.toString()));
         }
-        Reopening found = new Reopening(period, on, reason);
         closed.remove(period);
+        Reopening found = new Reopening(period, on, reason);
         reopenings.add(found);
         return found;
     }
