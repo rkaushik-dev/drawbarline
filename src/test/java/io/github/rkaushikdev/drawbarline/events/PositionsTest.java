@@ -18,6 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.rkaushikdev.drawbarline.marks.CarMark;
 import io.github.rkaushikdev.drawbarline.support.Moves;
+import io.github.rkaushikdev.drawbarline.switching.Switching;
 import java.time.Instant;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -120,6 +121,12 @@ class PositionsTest {
     @Test
     void anEmptyLogWalksToNothing() {
         assertThat(positions(new EventLog(), NOW)).isEmpty();
+    }
+
+    @Test
+    void theWalkAgreesWithTheSwitchList() {
+        EventLog log = aLog();
+        assertThat(Switching.carsOnTrack(log, "ESCPAP1", NOW)).isEqualTo(onTrack(positions(log, NOW), "ESCPAP1"));
     }
 
     @Test
