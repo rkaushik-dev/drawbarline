@@ -34,7 +34,7 @@ import picocli.CommandLine.ParentCommand;
 @Command(
         name = "events",
         description = "The car event log.",
-        subcommands = {EventCommands.Record.class, EventCommands.Load.class, EventCommands.Show.class})
+        subcommands = {EventCommands.Load.class, EventCommands.Record.class, EventCommands.Show.class})
 final class EventCommands {
 
     /**

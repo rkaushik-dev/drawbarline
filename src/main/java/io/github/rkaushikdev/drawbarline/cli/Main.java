@@ -61,15 +61,22 @@ import picocli.CommandLine.TypeConversionException;
         description = "Car hire, demurrage and interchange settlement.",
         version = "drawbarline, version " + Drawbarline.VERSION,
         subcommands = {
-            Main.Init.class,
-            Main.ShowSettings.class,
-            Main.Status.class,
+            CloseCommands.ShowAudit.class,
+            CloseCommands.CloseMonth.class,
             Main.Doctor.class,
-            Main.Serve.class,
+            EventCommands.class,
             CloseCommands.ExportMonth.class,
             FleetCommands.class,
-            EventCommands.class,
-            ReferenceCommands.class
+            Main.Init.class,
+            CloseCommands.Periods.class,
+            ReferenceCommands.class,
+            CloseCommands.Reopen.class,
+            RepairCommands.class,
+            ReportCommands.class,
+            Main.Serve.class,
+            Main.ShowSettings.class,
+            CloseCommands.PrintStatement.class,
+            Main.Status.class
         })
 public final class Main {
 

@@ -55,11 +55,7 @@ public final class Office {
         return books;
     }
 
-    /**
-     * File the railroad: the car hire bands, the two shippers and their track, the demurrage tariff,
-     * the repair price master, depreciation and labor, and the cars on the register.
-     */
-    public static void file(UnitOfWork work) {
+    private static void file(UnitOfWork work) {
         for (Band band : Filings.someBands()) {
             work.rates().file(band);
         }

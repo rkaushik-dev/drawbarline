@@ -33,11 +33,11 @@ import picocli.CommandLine.ParentCommand;
         name = "reference",
         description = "The tables the road files.",
         subcommands = {
-            ReferenceCommands.Rates.class,
-            ReferenceCommands.TariffFiling.class,
-            ReferenceCommands.Shippers.class,
             ReferenceCommands.Industries.class,
-            ReferenceCommands.Show.class
+            ReferenceCommands.Rates.class,
+            ReferenceCommands.Shippers.class,
+            ReferenceCommands.Show.class,
+            ReferenceCommands.TariffFiling.class
         })
 final class ReferenceCommands {
 

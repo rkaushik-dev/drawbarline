@@ -32,8 +32,8 @@ import picocli.CommandLine.ParentCommand;
         subcommands = {
             FleetCommands.Add.class,
             FleetCommands.ListCars.class,
-            FleetCommands.Show.class,
-            FleetCommands.Retire.class
+            FleetCommands.Retire.class,
+            FleetCommands.Show.class
         })
 final class FleetCommands {
 
