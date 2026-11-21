@@ -227,6 +227,19 @@ public final class Readers {
         return new CommandError(Literal.of(text) + " is not " + what + ", write it as " + form);
     }
 
+    /** A whole number given as an option or an argument. */
+    public static final class Whole implements ITypeConverter<Integer> {
+
+        @Override
+        public Integer convert(String value) {
+            try {
+                return whole(value);
+            } catch (CommandError unreadable) {
+                throw new TypeConversionException(Literal.of(value) + " is not a valid integer.");
+            }
+        }
+    }
+
     /** A sheet named on the command line, which has to be a file that is there and can be read. */
     public static final class Sheet implements ITypeConverter<Path> {
 

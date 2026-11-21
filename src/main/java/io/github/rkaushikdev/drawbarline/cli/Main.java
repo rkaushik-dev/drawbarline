@@ -66,7 +66,10 @@ import picocli.CommandLine.TypeConversionException;
             Main.Status.class,
             Main.Doctor.class,
             Main.Serve.class,
-            CloseCommands.ExportMonth.class
+            CloseCommands.ExportMonth.class,
+            FleetCommands.class,
+            EventCommands.class,
+            ReferenceCommands.class
         })
 public final class Main {
 
@@ -135,6 +138,8 @@ public final class Main {
         CommandLine root = new CommandLine(main);
         root.setExpandAtFiles(false);
         root.setOverwrittenOptionsAllowed(true);
+        root.registerConverter(Integer.class, new Readers.Whole());
+        root.registerConverter(Integer.TYPE, new Readers.Whole());
         root.setOut(main.terminal.out());
         root.setErr(main.terminal.err());
         addHelp(root);
