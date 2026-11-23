@@ -319,15 +319,15 @@ class ScalesTest {
         paper.commodity = KRAFT_PAPER;
         WeightAgreement other = paper.build();
         assertThat(Scales.overlapping(List.of(first, other, second))).containsExactly(List.of(first, second));
-        assertThat(Scales.clash(first, other)).isFalse();
-        assertThat(Scales.clash(second, first)).isTrue();
+        assertThat(WeightAgreements.clash(first, other)).isFalse();
+        assertThat(WeightAgreements.clash(second, first)).isTrue();
     }
 
     @Test
     void anotherShippersAgreementNeverClashes() {
         AgreementFields elsewhere = new AgreementFields();
         elsewhere.shipper = "ESCPAP";
-        assertThat(Scales.clash(anAgreement(), elsewhere.build())).isFalse();
+        assertThat(WeightAgreements.clash(anAgreement(), elsewhere.build())).isFalse();
         assertThat(Scales.agreementFor(List.of(elsewhere.build()), "PWRGRN", WHEAT, LocalDate.of(2025, 1, 14)))
                 .isEmpty();
     }
