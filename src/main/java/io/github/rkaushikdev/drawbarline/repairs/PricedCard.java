@@ -10,7 +10,9 @@ import java.util.Objects;
  *
  * <p>The price comes out of the master; the responsibility comes off the why made code, or off an
  * inspector who overrode it. The owner is only ever billed for wear and joint work, and the road
- * doing the work bears the rest whether it likes it or not.
+ * doing the work bears the rest whether it likes it or not. Where the owner is billed for a new
+ * part, the old one that came off is the repairing road's scrap, and the owner is credited what it
+ * is worth.
  */
 public record PricedCard(RepairCard card, List<PricedLine> lines) {
 
@@ -21,18 +23,34 @@ public record PricedCard(RepairCard card, List<PricedLine> lines) {
 
     /**
      * Put money on every line of a card: the master's hours at the performing road's labor rate,
-     * and the material at the master's price less any depreciation, each times the quantity.
+     * the material at the master's price less any depreciation, and on a line the owner is billed
+     * for, the scrap credit the family of the part carries, each times the quantity.
      */
     public static PricedCard price(RepairCard card, PriceMaster master, LaborRates rates) {
         LaborRate rate = rates.rateFor(card.performedBy(), card.on());
         List<PricedLine> lines = new ArrayList<>();
         for (Defect defect : card.defects()) {
-            PriceLine line = master.lineFor(defect.job(), card.on());
-            Money labor = rate.costOf(line.laborHundredths() * defect.quantity());
-            Money material = master.materialFor(defect.job(), card.on(), defect.partYears());
-            lines.add(new PricedLine(defect, labor, material.times(defect.quantity())));
+            lines.add(priceLine(defect, card, master, rate));
         }
         return new PricedCard(card, lines);
+    }
+
+    private static PricedLine priceLine(Defect defect, RepairCard card, PriceMaster master, LaborRate rate) {
+        int parts = defect.quantity();
+        Money labor = rate.costOf(master.lineFor(defect.job(), card.on()).laborHundredths() * parts);
+        Money material =
+                master.materialFor(defect.job(), card.on(), defect.partYears()).times(parts);
+        Money scrap = defect.answeredBy().billableToOwner()
+                ? master.scrapFor(defect.job()).times(parts)
+                : Money.ZERO;
+        // A part worn nearly to its floor can be worth more as scrap than is left to bill for it;
+        // the credit takes the material to nothing and no further.
+        return new PricedLine(defect, labor, material, scrap.isGreaterThan(material) ? material : scrap);
+    }
+
+    /** Every scrap credit the owner is given on the card. */
+    public Money scrapCredited() {
+        return Money.total(lines.stream().map(PricedLine::scrap).toList());
     }
 
     /** Every line together. */

@@ -202,4 +202,56 @@ class RepairCardTest {
         RepairCard card = aCard(List.of(new Defect(new JobCode("9999"), new WhyMade("01"))));
         assertThatThrownBy(() -> priced(card)).isInstanceOf(BillingError.class);
     }
+
+    static PricedCard pricedWithScrap(RepairCard card) {
+        PriceMaster master = aMaster();
+        master.creditScrap("43", new Money(15000));
+        return PricedCard.price(card, master, someRates());
+    }
+
+    @Test
+    void theOwnerIsCreditedTheScrapOfAWheelsetItPaysFor() {
+        PricedCard found = pricedWithScrap(aCard());
+        assertThat(found.lines().get(0).scrap()).isEqualTo(new Money(15000));
+        assertThat(found.total()).isEqualTo(new Money(138500 - 15000));
+        assertThat(found.billedToOwner()).isEqualTo(new Money(123500));
+        assertThat(found.scrapCredited()).isEqualTo(new Money(15000));
+    }
+
+    @Test
+    void theScrapCreditIsPerPart() {
+        PricedCard found = pricedWithScrap(aCard(List.of(new Defect(WHEELSET, new WhyMade("01")).withQuantity(2))));
+        assertThat(found.scrapCredited()).isEqualTo(new Money(30000));
+    }
+
+    @Test
+    void noScrapIsCreditedOnALineTheHandlingLineAnswersFor() {
+        PricedCard found = pricedWithScrap(aCard(List.of(new Defect(WHEELSET, new WhyMade("03")))));
+        assertThat(found.lines().get(0).scrap()).isEqualTo(new Money(0));
+        assertThat(found.borneByTheRoad()).isEqualTo(new Money(138500));
+    }
+
+    @Test
+    void aFamilyWithNoCreditFiledCreditsNothing() {
+        PricedCard found = pricedWithScrap(aCard(List.of(new Defect(COUPLER, new WhyMade("01")))));
+        assertThat(found.scrapCredited()).isEqualTo(new Money(0));
+        assertThat(aMaster().scrapFor(WHEELSET)).isEqualTo(new Money(0));
+    }
+
+    @Test
+    void theCreditNeverTakesAWornPartBelowNothing() {
+        PriceMaster master = aMaster();
+        master.creditScrap("43", new Money(200000));
+        PricedCard found = PricedCard.price(aCard(), master, someRates());
+        assertThat(found.lines().get(0).scrap()).isEqualTo(found.lines().get(0).material());
+        assertThat(found.total()).isEqualTo(new Money(10500));
+    }
+
+    @Test
+    void scrapIsNotWorthLessThanNothing() {
+        assertThatThrownBy(() -> aMaster().creditScrap("43", new Money(-1))).isInstanceOf(BillingError.class);
+        Defect defect = new Defect(WHEELSET, new WhyMade("01"));
+        assertThatThrownBy(() -> new PricedLine(defect, new Money(100), new Money(100), new Money(101)))
+                .isInstanceOf(BillingError.class);
+    }
 }

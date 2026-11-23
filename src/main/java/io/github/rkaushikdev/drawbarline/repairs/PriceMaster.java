@@ -18,6 +18,7 @@ public final class PriceMaster {
 
     private final Map<JobCode, Filings<PriceLine>> lines = new HashMap<>();
     private final Map<String, Depreciation> depreciation = new HashMap<>();
+    private final Map<String, Money> scrap = new HashMap<>();
 
     /** File a price line, refusing a second price for the same job from the same date. */
     public PriceLine add(PriceLine line) {
@@ -45,6 +46,24 @@ public final class PriceMaster {
                 .flatMap(filed -> filed.inForceOn(on))
                 .orElseThrow(() ->
                         new BillingError("no price on file", Details.of("job", job.toString(), "on", on.toString())));
+    }
+
+    /**
+     * File what one part of a family is worth as scrap when it comes off a car, replacing any
+     * credit the family had. A wheelset is worth a good deal to the scrap dealer and a brake shoe
+     * is worth nothing, so the credit is per family rather than per card.
+     */
+    public Money creditScrap(String family, Money perPart) {
+        if (perPart.cents() < 0) {
+            throw new BillingError("scrap is not worth less than nothing", Details.of("family", family));
+        }
+        scrap.put(family, perPart);
+        return perPart;
+    }
+
+    /** What one part removed under a job is worth as scrap, nothing where the family carries no credit. */
+    public Money scrapFor(JobCode job) {
+        return scrap.getOrDefault(job.family(), Money.ZERO);
     }
 
     /** The depreciation rule a job's family carries, if it carries one. */
