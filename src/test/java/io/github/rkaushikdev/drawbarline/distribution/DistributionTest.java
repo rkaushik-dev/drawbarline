@@ -15,6 +15,7 @@ import io.github.rkaushikdev.drawbarline.events.EventLog;
 import io.github.rkaushikdev.drawbarline.fleet.CarKind;
 import io.github.rkaushikdev.drawbarline.fleet.FleetRegister;
 import io.github.rkaushikdev.drawbarline.marks.CarMark;
+import io.github.rkaushikdev.drawbarline.marks.ReportingMark;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -276,5 +277,49 @@ class DistributionTest {
         assertThat(found.kind()).isSameAs(HOPPER);
         assertThat(found.station()).isEqualTo("ESC");
         assertThat(found).hasToString("CN 400100 at ESC");
+    }
+
+    static final ReportingMark HOME = new ReportingMark("DBL");
+
+    static Empty markedEmpty(String mark, String station) {
+        return new Empty(CarMark.parse(mark), HOPPER, station);
+    }
+
+    @Test
+    void aHomeCarGoesBeforeANearerForeignOne() {
+        List<Empty> empties = List.of(markedEmpty("CN 400100", "ESC"), markedEmpty("DBL 104207", "PWR"));
+        assertThat(cars(distribute(List.of(anOrder()), empties, STATIONS, HOME)))
+                .containsExactly("DBL 104207");
+        assertThat(cars(distribute(List.of(anOrder()), empties, STATIONS))).containsExactly("CN 400100");
+    }
+
+    @Test
+    void aForeignEmptyIsTakenOnceTheHomeCarsRunOut() {
+        List<Empty> empties =
+                List.of(markedEmpty("CN 400100", "ESC"), markedEmpty("DBL 104207", "PWR"), markedEmpty("ELS 7", "WLS"));
+        Distribution found = distribute(List.of(anOrderFor(3)), empties, STATIONS, HOME);
+        assertThat(cars(found)).containsExactly("DBL 104207", "CN 400100", "ELS 000007");
+        assertThat(found.isComplete()).isTrue();
+    }
+
+    @Test
+    void amongHomeCarsTheNearestStillWins() {
+        List<Empty> empties = List.of(markedEmpty("DBL 104300", "PWR"), markedEmpty("DBL 104207", "WLS"));
+        assertThat(cars(distribute(List.of(anOrder()), empties, STATIONS, HOME)))
+                .containsExactly("DBL 104207");
+    }
+
+    @Test
+    void aPrivateCarIsNeverDistributed() {
+        List<Empty> empties = List.of(markedEmpty("GATX 2011", "ESC"));
+        Distribution found = distribute(List.of(anOrder()), empties, STATIONS);
+        assertThat(found.assignments()).isEmpty();
+        assertThat(found.shortages()).containsEntry(1, 1);
+        assertThat(cars(distribute(
+                        List.of(anOrder()),
+                        List.of(markedEmpty("GATX 2011", "ESC"), anEmpty(400100, "IMT")),
+                        STATIONS,
+                        HOME)))
+                .containsExactly("CN 400100");
     }
 }

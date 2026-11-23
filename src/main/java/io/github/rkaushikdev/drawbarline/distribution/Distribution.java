@@ -6,6 +6,7 @@ import io.github.rkaushikdev.drawbarline.events.EventLog;
 import io.github.rkaushikdev.drawbarline.events.Positions;
 import io.github.rkaushikdev.drawbarline.fleet.FleetRegister;
 import io.github.rkaushikdev.drawbarline.marks.CarMark;
+import io.github.rkaushikdev.drawbarline.marks.ReportingMark;
 import io.github.rkaushikdev.drawbarline.mileage.Mileage;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -14,6 +15,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Car orders, and which empties go against them: what went where, and what could not be filled.
@@ -26,6 +28,9 @@ import java.util.Map;
  * <p>An order is filled with the nearest suitable empty, measured along the track rather than as
  * the crow flies, because that is the car the crew can actually get there. Where two are the same
  * distance the lower car number wins, so two runs of the same morning distribute the same cars.
+ *
+ * <p>A private car is never distributed. It belongs to a lessee's pool and goes where the lessee
+ * sends it, so it is counted among the empties on hand and passed over by every order.
  */
 public final class Distribution {
 
@@ -94,36 +99,61 @@ public final class Distribution {
     }
 
     /**
-     * Fill the orders oldest first, each car from the nearest suitable empty left.
+     * Fill the orders oldest first, each car from the nearest suitable empty left, every road's
+     * cars taken alike.
      *
      * @param stations the station each industry track is at
      */
     public static Distribution distribute(List<CarOrder> orders, List<Empty> empties, Map<String, String> stations) {
-        List<Empty> left = new ArrayList<>(empties);
+        return distribute(orders, empties, stations, Optional.empty());
+    }
+
+    /**
+     * Fill the orders oldest first under the car service rules: the home road's own empties go
+     * before anybody else's, and a foreign empty is taken only when no home car of the kind is left
+     * anywhere, because a foreign empty loaded off line is a car its owner wanted back. Inside each
+     * the nearest wins.
+     *
+     * @param home the road whose cars go first
+     */
+    public static Distribution distribute(
+            List<CarOrder> orders, List<Empty> empties, Map<String, String> stations, ReportingMark home) {
+        return distribute(orders, empties, stations, Optional.of(home));
+    }
+
+    private static Distribution distribute(
+            List<CarOrder> orders, List<Empty> empties, Map<String, String> stations, Optional<ReportingMark> home) {
+        List<Empty> left = new ArrayList<>(
+                empties.stream().filter(one -> !one.car().isPrivate()).toList());
         Distribution found = new Distribution();
-        List<CarOrder> queue =
-                orders.stream().sorted(Comparator.comparing(CarOrder::priority)).toList();
-        for (CarOrder order : queue) {
+        for (CarOrder order :
+                orders.stream().sorted(Comparator.comparing(CarOrder::priority)).toList()) {
             String wanted = stations.get(order.industry());
             if (wanted == null) {
                 throw new DistributionError(
                         "no station for that track", Details.of("order", order.number(), "industry", order.industry()));
             }
-            Comparator<Empty> nearest = Comparator.<Empty>comparingInt(
-                            one -> Mileage.tenthsBetween(one.station(), wanted))
-                    .thenComparing(one -> one.car().toString());
             for (int car = 0; car < order.cars(); car++) {
-                List<Empty> suitable =
-                        left.stream().filter(one -> one.kind() == order.kind()).toList();
-                if (suitable.isEmpty()) {
+                Optional<Empty> chosen =
+                        left.stream().filter(one -> one.kind() == order.kind()).min(choosing(wanted, home));
+                if (chosen.isEmpty()) {
                     found.shortages.merge(order.number(), 1, Integer::sum);
                     continue;
                 }
-                Empty chosen = suitable.stream().min(nearest).orElseThrow();
-                left.remove(chosen);
-                found.assignments.add(new Assignment(order.number(), chosen.car(), chosen.station(), wanted));
+                left.remove(chosen.get());
+                found.assignments.add(new Assignment(
+                        order.number(), chosen.get().car(), chosen.get().station(), wanted));
             }
         }
         return found;
+    }
+
+    /** Which empty goes first: a home car before a foreign one when there is a home road, then the nearest, then the lower number. */
+    private static Comparator<Empty> choosing(String wanted, Optional<ReportingMark> home) {
+        Comparator<Empty> homeFirst = Comparator.comparing(
+                (Empty one) -> home.map(road -> !one.car().mark().equals(road)).orElse(false));
+        return homeFirst
+                .thenComparingInt(one -> Mileage.tenthsBetween(one.station(), wanted))
+                .thenComparing(one -> one.car().toString());
     }
 }
