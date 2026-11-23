@@ -266,4 +266,79 @@ class DisputeTest {
         assertThat(aging.total()).isEqualTo(new Money(0));
         assertThatThrownBy(aging::oldest).isInstanceOf(SettlementError.class);
     }
+
+    @Test
+    void aDisputeSettledInPartUpholdsTheRest() {
+        DisputeRegister register = new DisputeRegister();
+        register.raise(aDispute());
+        register.settle(701, new Money(12000));
+        assertThat(register.standingOf(701)).isSameAs(Standing.SETTLED);
+        assertThat(register.disposalOf(701)).contains(Disposal.settled(new Money(12000)));
+        assertThat(register.upheld(701)).isEqualTo(new Money(33000));
+        assertThat(register.openAmount()).isEqualTo(new Money(0));
+    }
+
+    @Test
+    void settlingTheWholeAmountUpholdsNothing() {
+        DisputeRegister register = new DisputeRegister();
+        register.raise(aDispute());
+        register.settle(701);
+        assertThat(register.upheld(701)).isEqualTo(new Money(0));
+        assertThat(register.conceded(CN)).isEqualTo(new Money(45000));
+    }
+
+    @Test
+    void aWithdrawnDisputeConcedesNothing() {
+        DisputeRegister register = new DisputeRegister();
+        register.raise(aDispute());
+        register.withdraw(701);
+        assertThat(register.upheld(701)).isEqualTo(new Money(45000));
+        assertThat(register.conceded(CN)).isEqualTo(new Money(0));
+        assertThatThrownBy(() -> new Disposal(Standing.WITHDRAWN, new Money(1))).isInstanceOf(SettlementError.class);
+    }
+
+    @Test
+    void concedingMoreThanWasDisputedIsRefused() {
+        DisputeRegister register = new DisputeRegister();
+        register.raise(aDispute());
+        assertThatThrownBy(() -> register.settle(701, new Money(45001)))
+                .isInstanceOf(SettlementError.class)
+                .hasMessageContaining("more is conceded");
+        assertThat(register.standingOf(701)).isSameAs(Standing.OPEN);
+    }
+
+    @Test
+    void anOpenDisputeHasNothingUpheldYet() {
+        DisputeRegister register = new DisputeRegister();
+        register.raise(aDispute());
+        assertThat(register.disposalOf(701)).isEmpty();
+        assertThatThrownBy(() -> register.upheld(701)).isInstanceOf(SettlementError.class);
+        assertThatThrownBy(() -> new Disposal(Standing.OPEN, new Money(0))).isInstanceOf(SettlementError.class);
+        assertThatThrownBy(() -> Disposal.settled(new Money(-1))).isInstanceOf(SettlementError.class);
+    }
+
+    @Test
+    void whatIsConcededIsTotalledRoadByRoad() {
+        DisputeRegister register = new DisputeRegister();
+        register.raise(aDispute());
+        register.raise(a(702).amount(new Money(9000)).build());
+        register.raise(a(703).road(ELS).build());
+        register.settle(701, new Money(5000));
+        register.settle(702, new Money(9000));
+        register.settle(703, new Money(100));
+        assertThat(register.conceded(CN)).isEqualTo(new Money(14000));
+        assertThat(register.conceded(ELS)).isEqualTo(new Money(100));
+    }
+
+    @Test
+    void aMonthCanBeDisputedForSixMonthsAfterItEnds() {
+        assertThat(DisputeRegister.lastDayToDispute(JANUARY)).isEqualTo(date(2025, 7, 31));
+        DisputeRegister register = new DisputeRegister();
+        register.raise(a().raisedOn(date(2025, 7, 31)).build());
+        assertThatThrownBy(
+                        () -> register.raise(a(702).raisedOn(date(2025, 8, 1)).build()))
+                .isInstanceOf(SettlementError.class)
+                .hasMessageContaining("past disputing");
+        assertThat(register.size()).isEqualTo(1);
+    }
 }
