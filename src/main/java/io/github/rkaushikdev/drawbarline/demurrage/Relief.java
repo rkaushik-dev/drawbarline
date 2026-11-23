@@ -6,12 +6,7 @@ import io.github.rkaushikdev.drawbarline.customers.Industry;
 import io.github.rkaushikdev.drawbarline.days.Days;
 import io.github.rkaushikdev.drawbarline.marks.CarMark;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -26,8 +21,7 @@ import java.util.Optional;
  * as though it had arrived on the day it would have arrived had we delivered evenly.
  *
  * <p>The relief is per track and per day, because a customer with two tracks works them
- * independently, and it is handed out in car mark order so that two runs of the same month relieve
- * the same cars.
+ * independently and at their own rates: see {@link Bunching}.
  *
  * <p>Constructive placement is the other half. A car we could not place because the track was full
  * is still on the customer's time, but only if the track really was full; if it was not, we simply
@@ -73,45 +67,16 @@ public record Relief(CarMark car, String industry, int days, String reason) {
     }
 
     /**
-     * How far back each car has to be pushed for the delivery to read as even: on each track, the
-     * cars placed the same day are taken in car order, {@code perDay} to a day, and every car past
-     * the first day's worth is pushed back a day for each day's worth ahead of it.
+     * How far back each car has to be pushed for the delivery to read as even, every track worked
+     * at the same rate; see {@link Bunching} for tracks worked at their own.
      */
     public static List<Relief> bunching(List<Detention> detentions, int perDay) {
-        if (perDay < 1) {
-            throw new TariffError("a customer works at least one car a day", Details.of("per_day", perDay));
-        }
-        Map<Delivery, List<Detention>> grouped = new LinkedHashMap<>();
-        for (Detention one : detentions) {
-            grouped.computeIfAbsent(new Delivery(one.industry(), one.placedOn()), key -> new ArrayList<>())
-                    .add(one);
-        }
-        List<Relief> found = new ArrayList<>();
-        grouped.forEach((delivery, group) -> {
-            List<Detention> ordered = group.stream()
-                    .sorted(Comparator.comparing(one -> one.car().toString()))
-                    .toList();
-            for (int index = 0; index < ordered.size(); index++) {
-                int days = index / perDay;
-                if (days != 0) {
-                    found.add(new Relief(ordered.get(index).car(), delivery.industry(), days));
-                }
-            }
-        });
-        found.sort(Comparator.comparing(Relief::industry)
-                .thenComparing(one -> one.car().toString()));
-        return List.copyOf(found);
+        return Bunching.flat(perDay).reliefs(detentions);
     }
 
     /** Recount a set of detentions with bunching relief applied, in the order they were given. */
     public static List<Detention> relieve(List<Detention> detentions, Tariff tariff, int perDay) {
-        Map<CarMark, Integer> allowed = new HashMap<>();
-        for (Relief one : bunching(detentions, perDay)) {
-            allowed.put(one.car(), one.days());
-        }
-        return detentions.stream()
-                .map(one -> recount(one, tariff, allowed.getOrDefault(one.car(), 0)))
-                .toList();
+        return Bunching.flat(perDay).relieve(detentions, tariff);
     }
 
     /** Whether a constructive placement was really the customer holding us out: the track was full. */
@@ -134,7 +99,4 @@ public record Relief(CarMark car, String industry, int days, String reason) {
         }
         return detention;
     }
-
-    /** The cars set out on one track on one day, which is what bunching is reckoned over. */
-    private record Delivery(String industry, LocalDate placedOn) {}
 }
