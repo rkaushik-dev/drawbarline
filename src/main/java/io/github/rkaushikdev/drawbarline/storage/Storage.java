@@ -1,8 +1,6 @@
 package io.github.rkaushikdev.drawbarline.storage;
 
-import io.github.rkaushikdev.drawbarline.Details;
-import io.github.rkaushikdev.drawbarline.TariffError;
-import io.github.rkaushikdev.drawbarline.days.Days;
+import io.github.rkaushikdev.drawbarline.days.TariffCalendar;
 import io.github.rkaushikdev.drawbarline.demurrage.Detention;
 import io.github.rkaushikdev.drawbarline.demurrage.Tariff;
 import io.github.rkaushikdev.drawbarline.money.Money;
@@ -36,31 +34,38 @@ public final class Storage {
      * has been counted.
      */
     public static Optional<LocalDate> conversionDay(Detention detention, StorageTariff storage) {
+        return conversionDay(detention, storage, TariffCalendar.STANDARD);
+    }
+
+    /** The last day billed as demurrage, counting chargeable days on a tariff calendar. */
+    public static Optional<LocalDate> conversionDay(
+            Detention detention, StorageTariff storage, TariffCalendar calendar) {
         if (detention.chargeable() < storage.afterDays()) {
             return Optional.empty();
         }
         LocalDate day = detention.freeUntil().orElse(detention.clockStarts());
-        int counted = 0;
-        while (counted < storage.afterDays() && !day.isAfter(detention.countedTo())) {
-            day = day.plusDays(1);
-            if (Days.isChargeable(day)) {
-                counted++;
-            }
-        }
-        return Optional.of(day);
+        return Optional.of(calendar.addChargeableDays(day, storage.afterDays()));
     }
 
     /** Divide a detention between the demurrage schedule and the storage rate. */
     public static Split split(Detention detention, StorageTariff storage) {
+        return split(detention, storage, TariffCalendar.STANDARD);
+    }
+
+    /** Divide a detention under the storage tariff in force on the day the car was placed. */
+    public static Split split(Detention detention, StorageTariffs published) {
+        return split(detention, published.inEffectOn(detention.placedOn()), TariffCalendar.STANDARD);
+    }
+
+    /** Divide a detention between the demurrage schedule and the storage rate, on a tariff calendar. */
+    public static Split split(Detention detention, StorageTariff storage, TariffCalendar calendar) {
         String car = detention.car().toString();
-        if (detention.chargeable() < storage.afterDays()) {
+        Optional<LocalDate> converted = conversionDay(detention, storage, calendar);
+        if (converted.isEmpty()) {
             return new Split(car, detention.chargeable(), 0, Optional.empty());
         }
-        LocalDate converted = conversionDay(detention, storage)
-                .orElseThrow(() -> new TariffError(
-                        "a detention past the conversion has a conversion day", Details.of("car", car)));
-        long stored = ChronoUnit.DAYS.between(converted, detention.countedTo());
-        return new Split(car, storage.afterDays(), (int) Math.max(stored, 0), Optional.of(converted));
+        long stored = ChronoUnit.DAYS.between(converted.get(), detention.countedTo());
+        return new Split(car, storage.afterDays(), (int) Math.max(stored, 0), converted);
     }
 
     /** What a detention comes to once the conversion is taken into account. */

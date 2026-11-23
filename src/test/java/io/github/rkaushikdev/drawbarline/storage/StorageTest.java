@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.rkaushikdev.drawbarline.TariffError;
+import io.github.rkaushikdev.drawbarline.days.TariffCalendar;
 import io.github.rkaushikdev.drawbarline.demurrage.Detention;
 import io.github.rkaushikdev.drawbarline.demurrage.Step;
 import io.github.rkaushikdev.drawbarline.demurrage.Tariff;
@@ -163,5 +164,44 @@ class StorageTest {
         Split found = Storage.split(aDetention(5, LocalDate.of(2025, 1, 23)), STORAGE);
         assertThat(found.storageDays()).isZero();
         assertThat(found.converted()).isFalse();
+    }
+
+    @Test
+    void aCarIsStoredUnderTheStorageTariffItWasPlacedUnder() {
+        StorageTariffs published = new StorageTariffs();
+        published.publish(STORAGE);
+        published.publish(new StorageTariff("4600", LocalDate.of(2025, 1, 20), 2, 5000));
+        Split found = Storage.split(aLongHold(), published);
+        assertThat(found).isEqualTo(Storage.split(aLongHold(), STORAGE));
+        assertThat(published.inEffectOn(LocalDate.of(2025, 1, 20)).code()).isEqualTo("4600");
+        assertThat(published.all()).hasSize(2);
+    }
+
+    @Test
+    void aCarPlacedBeforeAnyStorageTariffHasNoneToBeStoredUnder() {
+        StorageTariffs published = new StorageTariffs();
+        published.publish(new StorageTariff("4600", LocalDate.of(2025, 1, 20), 2, 5000));
+        assertThatThrownBy(() -> Storage.split(aLongHold(), published))
+                .isInstanceOf(TariffError.class)
+                .hasMessageContaining("no storage tariff");
+    }
+
+    @Test
+    void twoStorageTariffsTakingEffectTheSameDayAreRefused() {
+        StorageTariffs published = new StorageTariffs();
+        published.publish(STORAGE);
+        assertThatThrownBy(() -> published.publish(new StorageTariff("4501", LocalDate.of(2024, 7, 1), 5, 4000)))
+                .isInstanceOf(TariffError.class)
+                .hasMessageContaining("already takes effect");
+    }
+
+    @Test
+    void aDeclaredDayPutsTheConversionOffADay() {
+        TariffCalendar storm = TariffCalendar.STANDARD.declaring(LocalDate.of(2025, 1, 20), "blizzard");
+        assertThat(Storage.conversionDay(aLongHold(), STORAGE)).contains(LocalDate.of(2025, 1, 23));
+        assertThat(Storage.conversionDay(aLongHold(), STORAGE, storm)).contains(LocalDate.of(2025, 1, 24));
+        Split found = Storage.split(aLongHold(), STORAGE, storm);
+        assertThat(found.convertedOn()).contains(LocalDate.of(2025, 1, 24));
+        assertThat(found.storageDays()).isEqualTo(21);
     }
 }

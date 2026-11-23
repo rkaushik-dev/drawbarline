@@ -2,12 +2,10 @@ package io.github.rkaushikdev.drawbarline.repairs;
 
 import io.github.rkaushikdev.drawbarline.BillingError;
 import io.github.rkaushikdev.drawbarline.Details;
+import io.github.rkaushikdev.drawbarline.clock.Filings;
 import io.github.rkaushikdev.drawbarline.money.Money;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -18,24 +16,21 @@ import java.util.Optional;
  */
 public final class PriceMaster {
 
-    private final Map<JobCode, List<PriceLine>> lines = new HashMap<>();
+    private final Map<JobCode, Filings<PriceLine>> lines = new HashMap<>();
     private final Map<String, Depreciation> depreciation = new HashMap<>();
 
     /** File a price line, refusing a second price for the same job from the same date. */
     public PriceLine add(PriceLine line) {
-        List<PriceLine> standing = lines.computeIfAbsent(line.job(), job -> new ArrayList<>());
-        if (standing.stream().anyMatch(one -> one.effective().equals(line.effective()))) {
-            throw new BillingError(
-                    "that job is already priced from that date",
-                    Details.of(
-                            "job",
-                            line.job().toString(),
-                            "effective",
-                            line.effective().toString()));
-        }
-        standing.add(line);
-        standing.sort(Comparator.comparing(PriceLine::effective));
-        return line;
+        return lines.computeIfAbsent(line.job(), job -> new Filings<>(PriceLine::effective))
+                .file(
+                        line,
+                        () -> new BillingError(
+                                "that job is already priced from that date",
+                                Details.of(
+                                        "job",
+                                        line.job().toString(),
+                                        "effective",
+                                        line.effective().toString())));
     }
 
     /** File the depreciation rule for a family, replacing any rule it had. */
@@ -46,16 +41,10 @@ public final class PriceMaster {
 
     /** The price in force for a job on a day: the latest line priced by then. */
     public PriceLine lineFor(JobCode job, LocalDate on) {
-        PriceLine found = null;
-        for (PriceLine one : lines.getOrDefault(job, List.of())) {
-            if (!one.effective().isAfter(on)) {
-                found = one;
-            }
-        }
-        if (found == null) {
-            throw new BillingError("no price on file", Details.of("job", job.toString(), "on", on.toString()));
-        }
-        return found;
+        return Optional.ofNullable(lines.get(job))
+                .flatMap(filed -> filed.inForceOn(on))
+                .orElseThrow(() ->
+                        new BillingError("no price on file", Details.of("job", job.toString(), "on", on.toString())));
     }
 
     /** The depreciation rule a job's family carries, if it carries one. */
@@ -73,6 +62,6 @@ public final class PriceMaster {
 
     /** How many price lines are on file. */
     public int size() {
-        return lines.values().stream().mapToInt(List::size).sum();
+        return lines.values().stream().mapToInt(Filings::size).sum();
     }
 }
