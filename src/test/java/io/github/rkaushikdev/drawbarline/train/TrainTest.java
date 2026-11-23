@@ -206,4 +206,62 @@ class TrainTest {
     void theConsistErrorHasADecidedStatus() {
         assertThat(Errors.STATUS_FOR).containsKey(ConsistError.class);
     }
+
+    /** A car of the usual size loaded to a gross weight on the rail. */
+    static Position grossing(String mark, long pounds) {
+        return new Position(aCar(mark), new Lading(WHEAT, new Weight(pounds - 63500)));
+    }
+
+    @Test
+    void theBranchBridgesTakeAHundredTonCarAndTheMainAOneTen() {
+        assertThat(Train.district(Mileage.BRANCH).maxCarWeight()).isEqualTo(new Weight(263000));
+        assertThat(Train.district(Mileage.MAIN).maxCarWeight()).isEqualTo(new Weight(286000));
+        assertThat(new District(Mileage.MAIN, "anywhere", 100, Length.of(100)).maxCarWeight())
+                .isEqualTo(new Weight(286000));
+    }
+
+    @Test
+    void aOneTenCarLoadedFullRunsTheMainAndNotTheBranch() {
+        Consist found = new Consist("L51", DAY, List.of(grossing("CN 400100", 286000), grossing("CN 400101", 263000)));
+        assertThat(Train.clears(found, Train.district(Mileage.MAIN))).isTrue();
+        assertThat(Train.check(found, Train.district(Mileage.BRANCH)))
+                .containsExactly(
+                        "CN 400100 weighs 286,000 lb on the rail and the powers to niagara takes 263,000 lb a car");
+        assertThat(Train.setOuts(found, Train.district(Mileage.BRANCH)))
+                .extracting(one -> one.car().mark().toString())
+                .containsExactly("CN 400100");
+    }
+
+    @Test
+    void aCarExactlyAtTheRatingRuns() {
+        District branch = Train.district(Mileage.BRANCH);
+        assertThat(branch.takesCar(grossing("CN 400100", 263000))).isTrue();
+        assertThat(branch.takesCar(grossing("CN 400100", 263001))).isFalse();
+        assertThat(branch.takesCar(new Position(aCar("CN 400100")))).isTrue();
+    }
+
+    @Test
+    void theTrainFindingsComeBeforeTheCarFindings() {
+        List<Position> positions = new ArrayList<>();
+        positions.add(grossing("CN 400100", 280000));
+        for (int at = 1; at < 30; at++) {
+            positions.add(new Position(aCar("CN " + (400100 + at)), GRAIN));
+        }
+        List<String> found = Train.check(new Consist("L51", DAY, positions), Train.district(Mileage.BRANCH));
+        assertThat(found).hasSize(2);
+        assertThat(found.get(0)).contains("tons is over");
+        assertThat(found.get(1)).startsWith("CN 400100 weighs 280,000 lb");
+    }
+
+    @Test
+    void aDistrictTakesACarThatWeighsSomething() {
+        assertThatThrownBy(() -> new District(Mileage.MAIN, "nowhere", 100, Length.of(100), Weight.NOTHING))
+                .isInstanceOf(ConsistError.class);
+    }
+
+    @Test
+    void aPositionReadsItsTonsDown() {
+        assertThat(grossing("CN 400100", 263999).tons()).isEqualTo(131);
+        assertThat(new Position(aCar("CN 400100")).tons()).isEqualTo(31);
+    }
 }

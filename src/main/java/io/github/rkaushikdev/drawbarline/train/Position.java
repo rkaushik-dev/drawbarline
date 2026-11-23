@@ -33,6 +33,11 @@ public record Position(Car car, Optional<Lading> lading) {
         return lading.map(one -> car.lightWeight().plus(one.weight())).orElse(car.lightWeight());
     }
 
+    /** Tons on the rail, rounded down the way a tonnage rating is read. */
+    public long tons() {
+        return Math.floorDiv(weight().pounds(), Weight.POUNDS_PER_TON);
+    }
+
     /** {@code CN 400100 wheat}, or {@code empty}. */
     @Override
     public String toString() {
