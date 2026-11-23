@@ -12,7 +12,8 @@ import java.util.Optional;
  * <p>Every date here is local at the station the car stood at: see {@link Counting}.
  *
  * @param placedOn the day the car was placed, actually or constructively
- * @param clockStarts the first chargeable day after placement, where free time begins
+ * @param clockStarts where free time begins: the first chargeable day after placement, or after the
+ *     day the car was ordered for when it came early
  * @param freeUntil the last free day, absent when the tariff allows none
  * @param countedTo the day the car was released, or the day counting stopped
  * @param chargeable the chargeable days past free time

@@ -193,4 +193,47 @@ class DetentionTest {
         assertThat(Counting.clockStartsOn(LocalDate.of(2025, 1, 14), storm)).isEqualTo(LocalDate.of(2025, 1, 16));
         assertThat(Counting.freeTimeEnds(LocalDate.of(2025, 1, 14), 0, storm)).isEmpty();
     }
+
+    @Test
+    void aCarPlacedAheadOfItsOrderWaitsForTheDayItWasWanted() {
+        Optional<LocalDate> thursday = Optional.of(LocalDate.of(2025, 1, 16));
+        Detention found = Counting.count(heldUntil(22), TARIFF, ESC, true, TariffCalendar.STANDARD, thursday);
+        assertThat(found.placedOn()).isEqualTo(LocalDate.of(2025, 1, 14));
+        assertThat(found.clockStarts()).isEqualTo(LocalDate.of(2025, 1, 16));
+        assertThat(found.freeUntil()).contains(LocalDate.of(2025, 1, 17));
+        assertThat(found.chargeable()).isEqualTo(3);
+    }
+
+    @Test
+    void aCarPlacedOnOrAfterItsDayCountsAsUsual() {
+        Detention usual = Counting.count(heldUntil(22), TARIFF, ESC, true);
+        assertThat(Counting.count(
+                        heldUntil(22),
+                        TARIFF,
+                        ESC,
+                        true,
+                        TariffCalendar.STANDARD,
+                        Optional.of(LocalDate.of(2025, 1, 14))))
+                .isEqualTo(usual);
+        assertThat(Counting.count(
+                        heldUntil(22),
+                        TARIFF,
+                        ESC,
+                        true,
+                        TariffCalendar.STANDARD,
+                        Optional.of(LocalDate.of(2025, 1, 15))))
+                .isEqualTo(usual);
+        assertThat(Counting.count(heldUntil(22), TARIFF, ESC, true, TariffCalendar.STANDARD, Optional.empty()))
+                .isEqualTo(usual);
+    }
+
+    @Test
+    void anOrderForAWeekendDayStartsTheClockOnTheMondayAfter() {
+        assertThat(Counting.clockStartsOn(
+                        LocalDate.of(2025, 1, 14), Optional.of(LocalDate.of(2025, 1, 18)), TariffCalendar.STANDARD))
+                .isEqualTo(LocalDate.of(2025, 1, 20));
+        TariffCalendar storm = TariffCalendar.STANDARD.declaring(LocalDate.of(2025, 1, 16), "blizzard");
+        assertThat(Counting.clockStartsOn(LocalDate.of(2025, 1, 13), Optional.of(LocalDate.of(2025, 1, 16)), storm))
+                .isEqualTo(LocalDate.of(2025, 1, 17));
+    }
 }
