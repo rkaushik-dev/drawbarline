@@ -214,4 +214,63 @@ class HazmatTest {
         assertThat(Hazmat.checkStanding(cars)).hasSize(2).allSatisfy(one -> assertThat(one)
                 .contains("sixth from the engine"));
     }
+
+    @Test
+    void explosivesAreKeptApartFromEveryOtherPlacardButMiscellaneous() {
+        assertThat(HazardClass.EXPLOSIVE.keptApartFrom(HazardClass.GAS)).isTrue();
+        assertThat(HazardClass.CORROSIVE.keptApartFrom(HazardClass.EXPLOSIVE)).isTrue();
+        assertThat(HazardClass.EXPLOSIVE.keptApartFrom(HazardClass.EXPLOSIVE)).isFalse();
+        assertThat(HazardClass.EXPLOSIVE.keptApartFrom(HazardClass.MISCELLANEOUS))
+                .isFalse();
+    }
+
+    @Test
+    void anOxidizerIsKeptApartFromWhatBurns() {
+        assertThat(HazardClass.OXIDIZER.keptApartFrom(HazardClass.FLAMMABLE_LIQUID))
+                .isTrue();
+        assertThat(HazardClass.FLAMMABLE_SOLID.keptApartFrom(HazardClass.OXIDIZER))
+                .isTrue();
+        assertThat(HazardClass.OXIDIZER.keptApartFrom(HazardClass.CORROSIVE)).isFalse();
+        assertThat(HazardClass.FLAMMABLE_LIQUID.keptApartFrom(HazardClass.CORROSIVE))
+                .isFalse();
+    }
+
+    @Test
+    void anExplosiveCoupledToAFlammableLiquidDoesNotHandle() {
+        List<Standing> cars = List.of(
+                aCar(1), placarded(2, HazardClass.EXPLOSIVE), placarded(3, HazardClass.FLAMMABLE_LIQUID), aCar(4));
+        assertThat(Hazmat.checkStanding(cars))
+                .containsExactly("position 2 is placarded explosive and is coupled to flammable liquid at 3");
+    }
+
+    @Test
+    void aPlainCarBetweenThemIsSeparationEnough() {
+        List<Standing> cars = List.of(
+                aCar(1),
+                placarded(2, HazardClass.EXPLOSIVE),
+                aCar(3),
+                placarded(4, HazardClass.FLAMMABLE_LIQUID),
+                aCar(5));
+        assertThat(Hazmat.handles(cars)).isTrue();
+    }
+
+    @Test
+    void aRunOfPlacardedCarsIsCheckedCouplingByCoupling() {
+        List<Standing> cars = List.of(
+                aCar(1),
+                placarded(2, HazardClass.FLAMMABLE_LIQUID),
+                placarded(3, HazardClass.OXIDIZER),
+                placarded(4, HazardClass.FLAMMABLE_SOLID),
+                placarded(5, HazardClass.CORROSIVE));
+        assertThat(Hazmat.checkStanding(cars))
+                .containsExactly(
+                        "position 2 is placarded flammable liquid and is coupled to oxidizer at 3",
+                        "position 3 is placarded oxidizer and is coupled to flammable solid at 4");
+    }
+
+    @Test
+    void theOccupiedCarFindingStillNamesThePlaceOfTheOccupiedCar() {
+        assertThat(Hazmat.checkStanding(List.of(aCar(1), placarded(2), occupied(3))))
+                .containsExactly("position 2 is placarded corrosive and sits against the occupied car at 3");
+    }
 }

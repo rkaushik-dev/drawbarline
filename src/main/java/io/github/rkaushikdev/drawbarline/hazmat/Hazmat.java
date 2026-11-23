@@ -15,7 +15,8 @@ import java.util.Optional;
  * cars to put five ahead of it, and when it has not, it still has at least one car between it and
  * the engine. It also keeps a car between it and an occupied car. These are train handling rules
  * rather than accounting ones, checked here because the consist is already built and it is the last
- * chance to catch them.
+ * chance to catch them. Two placarded cars may be coupled together unless their classes are ones
+ * that are kept apart (see {@link HazardClass#keptApartFrom}).
  *
  * <p>The commodity decides the placard and the placard decides the handling, and that chain runs
  * one way only: nothing here reads a placard off a car and infers what is in it, because a placard
@@ -53,6 +54,7 @@ public final class Hazmat {
         List<Standing> ordered = inOrder(cars);
         List<String> found = new ArrayList<>(offTheEngine(ordered));
         found.addAll(offOccupiedCars(ordered));
+        found.addAll(apartFromEachOther(ordered));
         return List.copyOf(found);
     }
 
@@ -82,14 +84,11 @@ public final class Hazmat {
     private static List<String> offTheEngine(List<Standing> ordered) {
         int buffer = engineBuffer(ordered);
         List<String> found = new ArrayList<>();
+        String where = buffer == BUFFER_CARS
+                ? " and sits against the engine"
+                : " and the train has the cars to stand it sixth from the engine";
         for (Standing one : ordered.subList(0, Math.min(buffer, ordered.size()))) {
-            buffered(one)
-                    .ifPresent(hazard -> found.add(
-                            buffer == BUFFER_CARS
-                                    ? "position " + one.position() + " is placarded " + hazard.text()
-                                            + " and sits against the engine"
-                                    : "position " + one.position() + " is placarded " + hazard.text()
-                                            + " and the train has the cars to stand it sixth from the engine"));
+            buffered(one).ifPresent(hazard -> found.add(placardedAt(one, hazard) + where));
         }
         return found;
     }
@@ -97,18 +96,45 @@ public final class Hazmat {
     private static List<String> offOccupiedCars(List<Standing> ordered) {
         List<String> found = new ArrayList<>();
         for (Standing one : ordered) {
-            if (!one.occupied()) {
-                continue;
-            }
-            for (Standing other : ordered) {
-                if (Math.abs(other.position() - one.position()) <= BUFFER_CARS) {
+            if (one.occupied()) {
+                for (Standing other : beside(ordered, one)) {
                     buffered(other)
-                            .ifPresent(hazard -> found.add("position " + other.position() + " is placarded "
-                                    + hazard.text() + " and sits against the occupied car at " + one.position()));
+                            .ifPresent(hazard -> found.add(placardedAt(other, hazard)
+                                    + " and sits against the occupied car at " + one.position()));
                 }
             }
         }
         return found;
+    }
+
+    /** Placarded cars coupled to a car whose class they have to be kept apart from, each pair once. */
+    private static List<String> apartFromEachOther(List<Standing> ordered) {
+        List<String> found = new ArrayList<>();
+        for (int at = 1; at < ordered.size(); at++) {
+            Standing ahead = ordered.get(at - 1);
+            Standing behind = ordered.get(at);
+            if (ahead.placarded() && behind.placarded()) {
+                HazardClass first = ahead.hazard().orElseThrow();
+                HazardClass second = behind.hazard().orElseThrow();
+                if (first.keptApartFrom(second)) {
+                    found.add(placardedAt(ahead, first) + " and is coupled to " + second.text() + " at "
+                            + behind.position());
+                }
+            }
+        }
+        return found;
+    }
+
+    /** The cars standing within a buffer of one car, either side of it. */
+    private static List<Standing> beside(List<Standing> ordered, Standing one) {
+        return ordered.stream()
+                .filter(other -> Math.abs(other.position() - one.position()) <= BUFFER_CARS)
+                .toList();
+    }
+
+    /** {@code position 3 is placarded corrosive}. */
+    private static String placardedAt(Standing one, HazardClass hazard) {
+        return "position " + one.position() + " is placarded " + hazard.text();
     }
 
     /** Whether the train may be handled as it stands. */
