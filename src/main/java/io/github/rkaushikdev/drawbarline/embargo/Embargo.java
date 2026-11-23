@@ -1,6 +1,7 @@
 package io.github.rkaushikdev.drawbarline.embargo;
 
 import io.github.rkaushikdev.drawbarline.Details;
+import io.github.rkaushikdev.drawbarline.clock.Term;
 import io.github.rkaushikdev.drawbarline.marks.ReportingMark;
 import io.github.rkaushikdev.drawbarline.mileage.Mileage;
 import io.github.rkaushikdev.drawbarline.util.Text;
@@ -50,9 +51,11 @@ public record Embargo(
             throw new EmbargoError(
                     "an embargo that restricts nothing stops the whole railroad", Details.of("number", number));
         }
-        if (expires.isPresent() && expires.get().isBefore(effective)) {
-            throw new EmbargoError("an embargo cannot expire before it takes effect", Details.of("number", number));
-        }
+        Term.checked(
+                effective,
+                expires,
+                () -> new EmbargoError(
+                        "an embargo cannot expire before it takes effect", Details.of("number", number)));
     }
 
     /** Start filing an embargo; at least one of station, commodity family and road has to follow. */
@@ -65,11 +68,13 @@ public record Embargo(
         return new Embargo(number, effective, reason, station, commodityFamily, road, Optional.of(on), permitsAllowed);
     }
 
+    /** The days the embargo stops anything. */
+    public Term term() {
+        return new Term(effective, expires);
+    }
+
     public boolean inForceOn(LocalDate day) {
-        if (day.isBefore(effective)) {
-            return false;
-        }
-        return expires.isEmpty() || !day.isAfter(expires.get());
+        return term().covers(day);
     }
 
     /** Whether a movement runs into this embargo. Every stated field has to match. */

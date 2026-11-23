@@ -272,4 +272,63 @@ class ScalesTest {
         assertThatThrownBy(() -> Scales.billingWeight(List.of(), "PWRGRN", WHEAT, LocalDate.of(2025, 1, 14)))
                 .isInstanceOf(ScaleError.class);
     }
+
+    static WeightAgreement from(LocalDate effective, Optional<LocalDate> expires, Weight agreed) {
+        AgreementFields changed = new AgreementFields();
+        changed.effective = effective;
+        changed.expires = expires;
+        changed.agreed = agreed;
+        return changed.build();
+    }
+
+    @Test
+    void anAgreementsTermIsItsEffectiveAndLastDay() {
+        WeightAgreement found = expiring(LocalDate.of(2025, 6, 30));
+        assertThat(found.term()).hasToString("2024-07-01 to 2025-06-30");
+        assertThat(found.covers(LocalDate.of(2025, 6, 30))).isTrue();
+        assertThat(found.covers(LocalDate.of(2025, 7, 1))).isFalse();
+    }
+
+    @Test
+    void twoAgreementsCoveringTheSameDayAreNotAChoice() {
+        WeightAgreement first = anAgreement();
+        WeightAgreement second = from(LocalDate.of(2025, 1, 1), Optional.empty(), new Weight(201000));
+        assertThatThrownBy(() -> Scales.billingWeight(
+                        List.of(first, second), "PWRGRN", WHEAT, LocalDate.of(2025, 1, 14), new Weight(197600)))
+                .isInstanceOf(ScaleError.class)
+                .hasMessageContaining("two weight agreements");
+    }
+
+    @Test
+    void anAgreementThatTakesOverTheDayAfterBills() {
+        WeightAgreement first = expiring(LocalDate.of(2024, 12, 31));
+        WeightAgreement second = from(LocalDate.of(2025, 1, 1), Optional.empty(), new Weight(201000));
+        List<WeightAgreement> both = List.of(first, second);
+        assertThat(Scales.billingWeight(both, "PWRGRN", WHEAT, LocalDate.of(2024, 12, 31)))
+                .isEqualTo(new Weight(198000));
+        assertThat(Scales.billingWeight(both, "PWRGRN", WHEAT, LocalDate.of(2025, 1, 1)))
+                .isEqualTo(new Weight(201000));
+        assertThat(Scales.overlapping(both)).isEmpty();
+    }
+
+    @Test
+    void overlappingAgreementsAreFoundBeforeAnythingIsBilled() {
+        WeightAgreement first = anAgreement();
+        WeightAgreement second = from(LocalDate.of(2025, 1, 1), Optional.empty(), new Weight(201000));
+        AgreementFields paper = new AgreementFields();
+        paper.commodity = KRAFT_PAPER;
+        WeightAgreement other = paper.build();
+        assertThat(Scales.overlapping(List.of(first, other, second))).containsExactly(List.of(first, second));
+        assertThat(Scales.clash(first, other)).isFalse();
+        assertThat(Scales.clash(second, first)).isTrue();
+    }
+
+    @Test
+    void anotherShippersAgreementNeverClashes() {
+        AgreementFields elsewhere = new AgreementFields();
+        elsewhere.shipper = "ESCPAP";
+        assertThat(Scales.clash(anAgreement(), elsewhere.build())).isFalse();
+        assertThat(Scales.agreementFor(List.of(elsewhere.build()), "PWRGRN", WHEAT, LocalDate.of(2025, 1, 14)))
+                .isEmpty();
+    }
 }

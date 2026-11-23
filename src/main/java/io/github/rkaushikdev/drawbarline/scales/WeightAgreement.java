@@ -1,6 +1,7 @@
 package io.github.rkaushikdev.drawbarline.scales;
 
 import io.github.rkaushikdev.drawbarline.Details;
+import io.github.rkaushikdev.drawbarline.clock.Term;
 import io.github.rkaushikdev.drawbarline.lading.Commodity;
 import io.github.rkaushikdev.drawbarline.util.Text;
 import io.github.rkaushikdev.drawbarline.weight.Weight;
@@ -28,9 +29,10 @@ public record WeightAgreement(
         if (agreed.pounds() < 1) {
             throw new ScaleError("an agreed weight is a weight", Details.of("shipper", shipper));
         }
-        if (expires.isPresent() && expires.get().isBefore(effective)) {
-            throw new ScaleError("an agreement cannot expire before it starts", Details.of("shipper", shipper));
-        }
+        Term.checked(
+                effective,
+                expires,
+                () -> new ScaleError("an agreement cannot expire before it starts", Details.of("shipper", shipper)));
     }
 
     /** An agreement with no end date. */
@@ -43,11 +45,13 @@ public record WeightAgreement(
         this(shipper, commodity, agreed, effective, Optional.of(expires));
     }
 
+    /** The days the agreement is the billing weight on. */
+    public Term term() {
+        return new Term(effective, expires);
+    }
+
     public boolean covers(LocalDate day) {
-        if (day.isBefore(effective)) {
-            return false;
-        }
-        return expires.isEmpty() || !day.isAfter(expires.get());
+        return term().covers(day);
     }
 
     /** Whether the agreement is the billing weight for a shipper's commodity on a day. */

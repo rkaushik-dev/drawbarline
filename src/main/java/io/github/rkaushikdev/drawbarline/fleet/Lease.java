@@ -1,6 +1,7 @@
 package io.github.rkaushikdev.drawbarline.fleet;
 
 import io.github.rkaushikdev.drawbarline.Details;
+import io.github.rkaushikdev.drawbarline.clock.Term;
 import io.github.rkaushikdev.drawbarline.marks.ReportingMark;
 import java.time.LocalDate;
 import java.util.Objects;
@@ -16,14 +17,15 @@ public record Lease(ReportingMark lessee, LocalDate began, Optional<LocalDate> e
         Objects.requireNonNull(lessee, "lessee");
         Objects.requireNonNull(began, "began");
         Objects.requireNonNull(ended, "ended");
-        if (ended.isPresent() && ended.get().isBefore(began)) {
-            throw new OwnershipError(
-                    "a lease cannot end before it begins",
-                    Details.of(
-                            "lessee", lessee.toString(),
-                            "began", began.toString(),
-                            "ended", ended.get().toString()));
-        }
+        Term.checked(
+                began,
+                ended,
+                () -> new OwnershipError(
+                        "a lease cannot end before it begins",
+                        Details.of(
+                                "lessee", lessee.toString(),
+                                "began", began.toString(),
+                                "ended", ended.get().toString())));
     }
 
     /** An open term. */
@@ -42,17 +44,17 @@ public record Lease(ReportingMark lessee, LocalDate began, Optional<LocalDate> e
 
     /** Whether the term runs on a day, both ends counted. */
     public boolean covers(LocalDate day) {
-        if (day.isBefore(began)) {
-            return false;
-        }
-        return ended.isEmpty() || !day.isAfter(ended.get());
+        return term().covers(day);
     }
 
     /** Whether the two terms share a day. */
     public boolean overlaps(Lease other) {
-        boolean left = ended.isEmpty() || !other.began.isAfter(ended.get());
-        boolean right = other.ended.isEmpty() || !began.isAfter(other.ended.get());
-        return left && right;
+        return term().overlaps(other.term());
+    }
+
+    /** The days the lessee collects. */
+    public Term term() {
+        return new Term(began, ended);
     }
 
     /** {@code CN from 2025-01-01 to 2025-06-30}, or {@code to open}. */

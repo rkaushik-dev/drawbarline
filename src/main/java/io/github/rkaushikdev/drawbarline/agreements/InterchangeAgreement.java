@@ -1,6 +1,7 @@
 package io.github.rkaushikdev.drawbarline.agreements;
 
 import io.github.rkaushikdev.drawbarline.Details;
+import io.github.rkaushikdev.drawbarline.clock.Term;
 import io.github.rkaushikdev.drawbarline.fleet.CarKind;
 import io.github.rkaushikdev.drawbarline.marks.ReportingMark;
 import io.github.rkaushikdev.drawbarline.mileage.Mileage;
@@ -50,9 +51,11 @@ public record InterchangeAgreement(
         if (!opens.isBefore(closes)) {
             throw new AgreementError("the junction opens before it closes", Details.of("junction", junction));
         }
-        if (expires.isPresent() && expires.get().isBefore(effective)) {
-            throw new AgreementError("an agreement cannot expire before it starts", Details.of("junction", junction));
-        }
+        Term.checked(
+                effective,
+                expires,
+                () -> new AgreementError(
+                        "an agreement cannot expire before it starts", Details.of("junction", junction)));
     }
 
     /** An open-ended agreement that takes no hazardous material. */
@@ -72,11 +75,13 @@ public record InterchangeAgreement(
         return junction + "/" + road;
     }
 
+    /** The days the agreement is in force. */
+    public Term term() {
+        return new Term(effective, expires);
+    }
+
     public boolean inForceOn(LocalDate day) {
-        if (day.isBefore(effective)) {
-            return false;
-        }
-        return expires.isEmpty() || !day.isAfter(expires.get());
+        return term().covers(day);
     }
 
     /** Whether somebody is at the junction at a local clock reading; the closing minute is closed. */

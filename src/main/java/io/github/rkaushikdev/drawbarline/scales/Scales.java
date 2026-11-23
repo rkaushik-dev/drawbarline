@@ -4,6 +4,7 @@ import io.github.rkaushikdev.drawbarline.Details;
 import io.github.rkaushikdev.drawbarline.lading.Commodity;
 import io.github.rkaushikdev.drawbarline.weight.Weight;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -16,6 +17,11 @@ import java.util.Optional;
  * scale was in certification on the day. The other half is the weights agreed rather than taken
  * (see {@link WeightAgreement}). Neither is a rounding convenience: both are things a shipper can
  * appeal, which is why both are dated and both are on file.
+ *
+ * <p>Two agreements covering the same shipper's commodity on the same day are not a choice of
+ * weights, they are a filing error, and billing on whichever one happened to be filed first is how
+ * a shipper ends up appealing a whole quarter. So an overlap is refused when a car is billed, and
+ * {@link #overlapping} finds them before anybody bills anything.
  */
 public final class Scales {
 
@@ -68,13 +74,46 @@ public final class Scales {
             Commodity commodity,
             LocalDate day,
             Optional<Weight> weighed) {
-        for (WeightAgreement one : agreements) {
-            if (one.appliesTo(shipper, commodity, day)) {
-                return one.agreed();
-            }
+        Optional<WeightAgreement> agreed = agreementFor(agreements, shipper, commodity, day);
+        if (agreed.isPresent()) {
+            return agreed.get().agreed();
         }
         return weighed.orElseThrow(() -> new ScaleError(
                 "no agreement and no weight, so nothing to bill on",
                 Details.of("shipper", shipper, "commodity", commodity.code().toString())));
+    }
+
+    /** The one agreement that bills a shipper's commodity on a day, refusing two that both claim to. */
+    public static Optional<WeightAgreement> agreementFor(
+            List<WeightAgreement> agreements, String shipper, Commodity commodity, LocalDate day) {
+        List<WeightAgreement> applying = agreements.stream()
+                .filter(one -> one.appliesTo(shipper, commodity, day))
+                .toList();
+        if (applying.size() > 1) {
+            throw new ScaleError(
+                    "two weight agreements cover that commodity on that day",
+                    Details.of("shipper", shipper, "commodity", commodity.code().toString(), "on", day.toString()));
+        }
+        return applying.stream().findFirst();
+    }
+
+    /** Whether two agreements are for the same shipper's commodity and share a day. */
+    public static boolean clash(WeightAgreement one, WeightAgreement other) {
+        return one.shipper().equals(other.shipper())
+                && one.commodity().code().equals(other.commodity().code())
+                && one.term().overlaps(other.term());
+    }
+
+    /** Every pair of agreements that clash, each pair once, in the order they were filed. */
+    public static List<List<WeightAgreement>> overlapping(List<WeightAgreement> agreements) {
+        List<List<WeightAgreement>> found = new ArrayList<>();
+        for (int at = 0; at < agreements.size(); at++) {
+            for (int later = at + 1; later < agreements.size(); later++) {
+                if (clash(agreements.get(at), agreements.get(later))) {
+                    found.add(List.of(agreements.get(at), agreements.get(later)));
+                }
+            }
+        }
+        return List.copyOf(found);
     }
 }

@@ -2,6 +2,7 @@ package io.github.rkaushikdev.drawbarline.demurrage;
 
 import io.github.rkaushikdev.drawbarline.Details;
 import io.github.rkaushikdev.drawbarline.TariffError;
+import io.github.rkaushikdev.drawbarline.clock.Term;
 import io.github.rkaushikdev.drawbarline.money.Money;
 import java.time.LocalDate;
 import java.util.Objects;
@@ -30,11 +31,12 @@ public record AverageAgreement(String shipper, long dailyCents, LocalDate effect
         if (dailyCents < 0) {
             throw new TariffError("a debit does not pay the customer", Details.of("cents", dailyCents));
         }
-        if (expires.isPresent() && expires.get().isBefore(effective)) {
-            throw new TariffError(
-                    "an agreement cannot expire before it starts",
-                    Details.of("shipper", shipper, "effective", effective.toString()));
-        }
+        Term.checked(
+                effective,
+                expires,
+                () -> new TariffError(
+                        "an agreement cannot expire before it starts",
+                        Details.of("shipper", shipper, "effective", effective.toString())));
     }
 
     /** An agreement that stands until somebody ends it. */
@@ -49,10 +51,12 @@ public record AverageAgreement(String shipper, long dailyCents, LocalDate effect
 
     /** Whether the agreement was in force on a day. */
     public boolean covers(LocalDate day) {
-        if (day.isBefore(effective)) {
-            return false;
-        }
-        return expires.map(last -> !day.isAfter(last)).orElse(true);
+        return term().covers(day);
+    }
+
+    /** The days the agreement is in force. */
+    public Term term() {
+        return new Term(effective, expires);
     }
 
     /** What one net debit costs. */
