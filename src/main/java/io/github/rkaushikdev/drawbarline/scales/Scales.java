@@ -13,10 +13,11 @@ import java.util.Optional;
  * Track scales, and the weights nobody actually weighs.
  *
  * <p>A track scale has to be tested on a cycle by a qualified inspector, and a weight taken on a
- * scale out of certification is not a weight anybody has to accept. So a weight is only good if the
- * scale was in certification on the day. The other half is the weights agreed rather than taken
- * (see {@link WeightAgreement}). Neither is a rounding convenience: both are things a shipper can
- * appeal, which is why both are dated and both are on file.
+ * scale out of certification is not a weight anybody has to accept. A reading stands only when the
+ * scale's last test passed inside tolerance and has not run out, and only when the reading is inside
+ * the scale's capacity. The other half is the weights agreed rather than taken (see {@link
+ * WeightAgreement}). Neither is a rounding convenience: both are things a shipper can appeal, which
+ * is why both are dated and both are on file.
  *
  * <p>Two agreements covering the same shipper's commodity on the same day are not a choice of
  * weights, they are a filing error, and billing on whichever one happened to be filed first is how
@@ -31,6 +32,9 @@ public final class Scales {
     /** The largest error, in tenths of a percent, a scale may show and stay inside tolerance. */
     public static final int TOLERANCE_TENTHS_PERCENT = 2;
 
+    /** Tenths of a percent in the whole. */
+    public static final int TENTHS_OF_A_PERCENT = 1000;
+
     private Scales() {}
 
     /** The most recent test on a scale as of a day. */
@@ -40,19 +44,82 @@ public final class Scales {
                 .max(Comparator.comparing(ScaleTest::testedOn));
     }
 
-    /** Whether a weight taken on that day would stand up. */
-    public static boolean certifiedOn(List<ScaleTest> tests, String scale, LocalDate day) {
-        return lastTest(tests, scale, day)
-                .map(found -> found.result().usable() && !day.isAfter(found.certifiesUntil()))
-                .orElse(false);
+    /**
+     * Why a weight taken on a scale that day would not stand up, or nothing when it would. A test
+     * written up as passed but showing an error outside tolerance certifies nothing: the inspector's
+     * box says passed and the number on the same sheet says otherwise, and a shipper's appeal reads
+     * the number.
+     */
+    public static Optional<String> whyNotCertified(List<ScaleTest> tests, String scale, LocalDate day) {
+        Optional<ScaleTest> last = lastTest(tests, scale, day);
+        if (last.isEmpty()) {
+            return Optional.of("never tested");
+        }
+        ScaleTest found = last.get();
+        if (!found.result().usable()) {
+            return Optional.of("failed its test on " + found.testedOn());
+        }
+        if (!found.insideTolerance()) {
+            return Optional.of("showed an error outside tolerance on " + found.testedOn());
+        }
+        if (day.isAfter(found.certifiesUntil())) {
+            return Optional.of("certification ran out on " + found.certifiesUntil());
+        }
+        return Optional.empty();
     }
 
-    /** Refuse a weight taken on a scale that was out of certification. */
+    /** Whether a weight taken on that day would stand up. */
+    public static boolean certifiedOn(List<ScaleTest> tests, String scale, LocalDate day) {
+        return whyNotCertified(tests, scale, day).isEmpty();
+    }
+
+    /** Refuse a weight taken on a scale that was out of certification, saying why. */
     public static void requireCertified(List<ScaleTest> tests, String scale, LocalDate day) {
-        if (!certifiedOn(tests, scale, day)) {
+        whyNotCertified(tests, scale, day).ifPresent(why -> {
             throw new ScaleError(
-                    "that scale was not in certification", Details.of("scale", scale, "on", day.toString()));
+                    "that scale was not in certification",
+                    Details.of("scale", scale, "on", day.toString(), "why", why));
+        });
+    }
+
+    /**
+     * Take a gross reading off a scale: refused when the scale was out of certification, and refused
+     * when the reading is past what the scale is built to weigh, because a reading over capacity is
+     * the scale pinned at its stop rather than the car.
+     */
+    public static Weight weighed(Scale scale, List<ScaleTest> tests, LocalDate day, Weight gross) {
+        requireCertified(tests, scale.code(), day);
+        if (gross.isGreaterThan(scale.capacity())) {
+            throw new ScaleError(
+                    "that reading is past what the scale weighs",
+                    Details.of(
+                            "scale",
+                            scale.code(),
+                            "pounds",
+                            gross.pounds(),
+                            "capacity",
+                            scale.capacity().pounds()));
         }
+        return gross;
+    }
+
+    /** The most a reading could be off on a scale showing an error of so many tenths of a percent. */
+    public static Weight allowance(Weight reading, int errorTenthsPercent) {
+        if (errorTenthsPercent < 0) {
+            throw new ScaleError("an error is stated as a magnitude", Details.of("error", errorTenthsPercent));
+        }
+        return new Weight(Math.floorDiv(reading.pounds() * errorTenthsPercent, TENTHS_OF_A_PERCENT));
+    }
+
+    /**
+     * How far a car weighed on a certified scale is over its gross rail load once the scale's own
+     * tolerance is given to the shipper. A car reading a few hundred pounds over on a scale allowed
+     * two tenths of a percent is not provably overloaded, and setting it out costs more than the
+     * argument.
+     */
+    public static Weight provenOverload(Weight gross, Weight grossRailLoad) {
+        Weight credited = gross.minus(allowance(gross, TOLERANCE_TENTHS_PERCENT));
+        return Weight.overload(credited, grossRailLoad);
     }
 
     /** What a car bills at when nothing was weighed: the agreement, or a refusal. */

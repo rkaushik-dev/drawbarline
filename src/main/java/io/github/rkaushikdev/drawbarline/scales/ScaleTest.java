@@ -7,7 +7,9 @@ import java.util.Objects;
 
 /**
  * One certification test on one track scale: when, how it came out, the error found in tenths of
- * a percent, and who did it. A passing test certifies the scale for {@link Scales#CERTIFICATION_DAYS}.
+ * a percent, and who did it. A test that passed, or was adjusted and passed, with its error inside
+ * tolerance certifies the scale for {@link Scales#CERTIFICATION_DAYS}; see {@link
+ * Scales#whyNotCertified}.
  */
 public record ScaleTest(String scale, LocalDate testedOn, Result result, int errorTenthsPercent, String inspector) {
 
@@ -23,6 +25,7 @@ public record ScaleTest(String scale, LocalDate testedOn, Result result, int err
         }
     }
 
+    /** Whether the error found is one the scale may show and stay in service. */
     public boolean insideTolerance() {
         return errorTenthsPercent <= Scales.TOLERANCE_TENTHS_PERCENT;
     }

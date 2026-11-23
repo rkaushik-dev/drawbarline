@@ -331,4 +331,65 @@ class ScalesTest {
         assertThat(Scales.agreementFor(List.of(elsewhere.build()), "PWRGRN", WHEAT, LocalDate.of(2025, 1, 14)))
                 .isEmpty();
     }
+
+    @Test
+    void aPassWithAnErrorOutsideToleranceCertifiesNothing() {
+        List<ScaleTest> tests = List.of(anError(5));
+        assertThat(Scales.certifiedOn(tests, "ESC1", LocalDate.of(2025, 2, 1))).isFalse();
+        assertThat(Scales.whyNotCertified(tests, "ESC1", LocalDate.of(2025, 2, 1)))
+                .contains("showed an error outside tolerance on 2025-01-06");
+        assertThat(Scales.certifiedOn(List.of(anError(2)), "ESC1", LocalDate.of(2025, 2, 1)))
+                .isTrue();
+    }
+
+    @Test
+    void theRefusalSaysWhyTheScaleWasOut() {
+        assertThat(Scales.whyNotCertified(List.of(), "ESC1", TESTED)).contains("never tested");
+        assertThat(Scales.whyNotCertified(List.of(aTest(Result.FAILED)), "ESC1", TESTED))
+                .contains("failed its test on 2025-01-06");
+        assertThat(Scales.whyNotCertified(List.of(aTest()), "ESC1", LocalDate.of(2026, 6, 1)))
+                .contains("certification ran out on 2026-01-06");
+        assertThat(Scales.whyNotCertified(List.of(aTest()), "ESC1", TESTED)).isEmpty();
+        assertThatThrownBy(() -> Scales.requireCertified(List.of(anError(5)), "ESC1", TESTED))
+                .isInstanceOf(ScaleError.class)
+                .hasMessageContaining("outside tolerance");
+    }
+
+    @Test
+    void aReadingOnACertifiedScaleInsideItsCapacityStands() {
+        assertThat(Scales.weighed(aScale(), List.of(aTest()), TESTED, new Weight(263400)))
+                .isEqualTo(new Weight(263400));
+        assertThat(Scales.weighed(aScale(), List.of(aTest()), TESTED, new Weight(400000)))
+                .isEqualTo(new Weight(400000));
+    }
+
+    @Test
+    void aReadingPastTheScalesCapacityIsRefused() {
+        assertThatThrownBy(() -> Scales.weighed(aScale(), List.of(aTest()), TESTED, new Weight(400001)))
+                .isInstanceOf(ScaleError.class)
+                .hasMessageContaining("past what the scale weighs");
+    }
+
+    @Test
+    void aReadingOnAnUncertifiedScaleIsRefusedWhateverItReads() {
+        assertThatThrownBy(() -> Scales.weighed(aScale(), List.of(), TESTED, new Weight(100000)))
+                .isInstanceOf(ScaleError.class)
+                .hasMessageContaining("not in certification");
+    }
+
+    @Test
+    void theAllowanceIsTheErrorTakenOffTheReading() {
+        assertThat(Scales.allowance(new Weight(286000), 2)).isEqualTo(new Weight(572));
+        assertThat(Scales.allowance(new Weight(286000), 0)).isEqualTo(Weight.NOTHING);
+        assertThat(Scales.allowance(new Weight(999), 1)).isEqualTo(Weight.NOTHING);
+        assertThatThrownBy(() -> Scales.allowance(new Weight(286000), -1)).isInstanceOf(ScaleError.class);
+    }
+
+    @Test
+    void aCarInsideTheScalesToleranceIsNotProvenOverloaded() {
+        Weight grossRailLoad = new Weight(286000);
+        assertThat(Scales.provenOverload(new Weight(286500), grossRailLoad)).isEqualTo(Weight.NOTHING);
+        assertThat(Scales.provenOverload(new Weight(285000), grossRailLoad)).isEqualTo(Weight.NOTHING);
+        assertThat(Scales.provenOverload(new Weight(290000), grossRailLoad)).isEqualTo(new Weight(3420));
+    }
 }
