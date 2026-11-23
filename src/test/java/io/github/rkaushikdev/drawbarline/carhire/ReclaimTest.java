@@ -248,4 +248,84 @@ class ReclaimTest {
     void aChargeWithNoReclaimsStands() {
         assertThat(netOfReclaims(new Money(1000), List.of())).isEqualTo(new Money(1000));
     }
+
+    /** A placement at the mill track on a January day and hour, loaded on a waybill or empty. */
+    static Event placedAt(int day, int hour, boolean loaded) {
+        Event.Builder placed = Event.builder(EventKind.PLACED, CAR, utc(2025, 1, day, hour), "ESC")
+                .industry("ESCPAP1");
+        if (loaded) {
+            placed.waybill(1);
+        }
+        return placed.build();
+    }
+
+    static Event onTheTrack(int day, int hour, EventKind kind) {
+        return Event.builder(kind, CAR, utc(2025, 1, day, hour), "ESC")
+                .industry("ESCPAP1")
+                .build();
+    }
+
+    static final Set<ReclaimReason> WITH_SHIPPERS =
+            Set.of(ReclaimReason.REPAIRS, ReclaimReason.SHIPPER_DELAY, ReclaimReason.EMBARGO);
+
+    @Test
+    void aLoadHeldPastTwoDaysIsReclaimedUntilTheShipperReleasesIt() {
+        CarStream stream = aVisit(
+                placedAt(8, 8, true), onTheTrack(13, 8, EventKind.RELEASED), onTheTrack(14, 8, EventKind.PULLED));
+        assertThat(Reclaim.shipperDelays(stream, JANUARY.end()))
+                .containsExactly(new Interval(utc(2025, 1, 10, 8), utc(2025, 1, 13, 8)));
+        List<Reclaim> found = reclaimsFor(aCar(), stream, aTable(), JANUARY, WITH_SHIPPERS);
+        assertThat(found).extracting(Reclaim::reason).containsExactly(ReclaimReason.SHIPPER_DELAY);
+        assertThat(found.get(0).amount()).isEqualTo(new Money(463 * 72));
+        assertThat(found.get(0)).hasToString("CN 400100 rule 15 $333.36");
+    }
+
+    @Test
+    void aLoadReleasedInsideTwoDaysReclaimsNothing() {
+        CarStream stream = aVisit(
+                placedAt(8, 8, true), onTheTrack(10, 8, EventKind.RELEASED), onTheTrack(12, 8, EventKind.PULLED));
+        assertThat(Reclaim.shipperDelays(stream, JANUARY.end())).isEmpty();
+    }
+
+    @Test
+    void anEmptyPlacedForLoadingIsNotHeldUnderLoad() {
+        CarStream stream = aVisit(
+                placedAt(8, 8, false), onTheTrack(15, 8, EventKind.RELEASED), onTheTrack(16, 8, EventKind.PULLED));
+        assertThat(Reclaim.shipperDelays(stream, JANUARY.end())).isEmpty();
+    }
+
+    @Test
+    void aLoadNeverReleasedIsHeldToThePullOrTheCutOff() {
+        CarStream pulled = aVisit(placedAt(8, 8, true), onTheTrack(12, 8, EventKind.PULLED));
+        assertThat(Reclaim.shipperDelays(pulled, JANUARY.end()))
+                .containsExactly(new Interval(utc(2025, 1, 10, 8), utc(2025, 1, 12, 8)));
+        CarStream standing = streamOf(at(5, 12, EventKind.RECEIVED, CN), placedAt(28, 8, true));
+        assertThat(Reclaim.shipperDelays(standing, JANUARY.end()))
+                .containsExactly(new Interval(utc(2025, 1, 30, 8), JANUARY.end()));
+    }
+
+    @Test
+    void theOrdinaryRulesLeaveShipperDelayOut() {
+        CarStream stream = aVisit(
+                placedAt(8, 8, true), onTheTrack(13, 8, EventKind.RELEASED), onTheTrack(14, 8, EventKind.PULLED));
+        assertThat(reclaimsFor(aCar(), stream, aTable(), JANUARY)).isEmpty();
+        assertThat(Reclaim.ORDINARY).doesNotContain(ReclaimReason.SHIPPER_DELAY);
+        assertThat(reclaimsFor(aCar(), stream, aTable(), JANUARY, Set.of())).isEmpty();
+    }
+
+    @Test
+    void reclaimsComeBackInRuleOrder() {
+        CarStream stream = aVisit(
+                at(6, 8, EventKind.HELD),
+                at(7, 8, EventKind.FREED),
+                placedAt(8, 8, true),
+                onTheTrack(13, 8, EventKind.RELEASED),
+                onTheTrack(14, 8, EventKind.PULLED),
+                at(15, 8, EventKind.BAD_ORDERED),
+                at(16, 8, EventKind.REPAIRED));
+        assertThat(reclaimsFor(aCar(), stream, aTable(), JANUARY, WITH_SHIPPERS))
+                .extracting(Reclaim::reason)
+                .containsExactly(ReclaimReason.REPAIRS, ReclaimReason.SHIPPER_DELAY, ReclaimReason.EMBARGO);
+        assertThat(Reclaim.holds(ReclaimReason.EMBARGO, stream, JANUARY.end())).hasSize(1);
+    }
 }
