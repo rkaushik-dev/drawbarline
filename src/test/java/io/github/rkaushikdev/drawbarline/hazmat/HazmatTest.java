@@ -5,6 +5,7 @@ import static io.github.rkaushikdev.drawbarline.lading.Commodity.SODIUM_HYDROXID
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -163,5 +164,54 @@ class HazmatTest {
     void anOccupiedCarAtTheHeadEndIsCheckedToo() {
         List<String> found = Hazmat.checkStanding(List.of(occupied(1), placarded(2), aCar(3)));
         assertThat(found).anySatisfy(one -> assertThat(one).contains("occupied car"));
+    }
+
+    /** A train of so many cars with one placarded car at a position, the rest plain. */
+    static List<Standing> aTrain(int cars, int placardedAt) {
+        List<Standing> found = new ArrayList<>();
+        for (int at = 1; at <= cars; at++) {
+            found.add(at == placardedAt ? placarded(at) : aCar(at));
+        }
+        return found;
+    }
+
+    @Test
+    void aLongTrainStandsAPlacardedCarSixthFromTheEngine() {
+        assertThat(Hazmat.handles(aTrain(8, 6))).isTrue();
+        assertThat(Hazmat.handles(aTrain(8, 7))).isTrue();
+        List<String> found = Hazmat.checkStanding(aTrain(8, 5));
+        assertThat(found)
+                .containsExactly(
+                        "position 5 is placarded corrosive and the train has the cars to stand it sixth from the engine");
+    }
+
+    @Test
+    void aTrainWithoutFiveSpareCarsOnlyNeedsTheOneBuffer() {
+        assertThat(Hazmat.engineBuffer(aTrain(5, 2))).isEqualTo(Hazmat.BUFFER_CARS);
+        assertThat(Hazmat.handles(aTrain(5, 2))).isTrue();
+        assertThat(Hazmat.checkStanding(aTrain(5, 1)))
+                .containsExactly("position 1 is placarded corrosive and sits against the engine");
+    }
+
+    @Test
+    void fiveSpareCarsAreWhatMakesATrainLongEnough() {
+        assertThat(Hazmat.engineBuffer(aTrain(6, 2))).isEqualTo(Hazmat.SIXTH_FROM_THE_ENGINE - 1);
+        assertThat(Hazmat.handles(aTrain(6, 2))).isFalse();
+        assertThat(Hazmat.handles(aTrain(6, 6))).isTrue();
+    }
+
+    @Test
+    void aMiscellaneousPlacardNeedsNoPlaceAndCountsAsASpareCar() {
+        List<Standing> cars = List.of(
+                placarded(1, HazardClass.MISCELLANEOUS), aCar(2), aCar(3), aCar(4), aCar(5), placarded(6), aCar(7));
+        assertThat(Hazmat.engineBuffer(cars)).isEqualTo(5);
+        assertThat(Hazmat.handles(cars)).isTrue();
+    }
+
+    @Test
+    void everyPlacardedCarTooNearTheEngineIsNamed() {
+        List<Standing> cars = List.of(aCar(1), placarded(2), aCar(3), placarded(4), aCar(5), aCar(6), aCar(7), aCar(8));
+        assertThat(Hazmat.checkStanding(cars)).hasSize(2).allSatisfy(one -> assertThat(one)
+                .contains("sixth from the engine"));
     }
 }
