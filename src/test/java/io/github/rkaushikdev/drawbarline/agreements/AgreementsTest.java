@@ -206,4 +206,60 @@ class AgreementsTest {
     void aNegativeCountIsRefusedWhenAskingForRoom() {
         assertThatThrownBy(() -> Agreements.roomLeft(anAgreement(), -1)).isInstanceOf(AgreementError.class);
     }
+
+    @Test
+    void aCarTheConnectionWouldTakeNowGoesNow() {
+        assertThat(Agreements.nextTaken(anAgreement(), HOPPER, MORNING, false, 3))
+                .contains(MORNING);
+    }
+
+    @Test
+    void aCarOfferedBeforeTheJunctionOpensGoesAtTheOpening() {
+        LocalDateTime dawn = LocalDateTime.of(2025, 1, 14, 5, 30);
+        assertThat(Agreements.nextTaken(anAgreement(), HOPPER, dawn, false, 0))
+                .contains(LocalDateTime.of(2025, 1, 14, 7, 0));
+    }
+
+    @Test
+    void aCarOfferedAfterClosingOrPastTheCapGoesAtTomorrowsOpening() {
+        LocalDateTime evening = LocalDateTime.of(2025, 1, 14, 19, 0);
+        assertThat(Agreements.nextTaken(anAgreement(), HOPPER, evening, false, 0))
+                .contains(LocalDateTime.of(2025, 1, 15, 7, 0));
+        assertThat(Agreements.nextTaken(anAgreement(), HOPPER, MORNING, false, 40))
+                .contains(LocalDateTime.of(2025, 1, 15, 7, 0));
+        LocalDateTime dawn = LocalDateTime.of(2025, 1, 14, 5, 30);
+        assertThat(Agreements.nextTaken(anAgreement(), HOPPER, dawn, false, 40))
+                .contains(LocalDateTime.of(2025, 1, 15, 7, 0));
+    }
+
+    @Test
+    void aCarTheAgreementNeverTakesHasNoNextTime() {
+        assertThat(Agreements.nextTaken(anAgreement(), TANK, MORNING, false, 0)).isEmpty();
+        assertThat(Agreements.nextTaken(anAgreement(), HOPPER, MORNING, true, 0))
+                .isEmpty();
+    }
+
+    @Test
+    void anAgreementEndingTonightLeavesNoTomorrow() {
+        InterchangeAgreement ending = expiring(LocalDate.of(2025, 1, 14));
+        assertThat(Agreements.nextTaken(ending, HOPPER, MORNING, false, 40)).isEmpty();
+        Fields later = new Fields();
+        later.effective = LocalDate.of(2025, 1, 15);
+        InterchangeAgreement starting = later.build();
+        assertThat(Agreements.nextTaken(starting, HOPPER, MORNING, false, 0))
+                .contains(LocalDateTime.of(2025, 1, 15, 7, 0));
+    }
+
+    @Test
+    void theAgreementGivesItsOwnRefusalsInOrder() {
+        LocalDateTime night = LocalDateTime.of(2025, 1, 14, 22, 0);
+        assertThat(anAgreement().refusals(TANK, night, true, 40))
+                .containsExactly(
+                        "ESC/CN does not take a tank car",
+                        "ESC/CN does not take hazardous material",
+                        "ESC/CN is closed at 22:00, it is manned 07:00 to 19:00",
+                        "ESC/CN has taken its 40 cars for the day");
+        assertThat(anAgreement().roomLeft(38)).isEqualTo(2);
+        assertThatThrownBy(() -> anAgreement().roomLeft(-1)).isInstanceOf(AgreementError.class);
+    }
 }
