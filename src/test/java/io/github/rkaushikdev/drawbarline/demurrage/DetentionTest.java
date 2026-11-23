@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.rkaushikdev.drawbarline.TariffError;
 import io.github.rkaushikdev.drawbarline.clock.Interval;
+import io.github.rkaushikdev.drawbarline.days.TariffCalendar;
 import io.github.rkaushikdev.drawbarline.events.Event;
 import io.github.rkaushikdev.drawbarline.events.EventKind;
 import io.github.rkaushikdev.drawbarline.events.EventLog;
@@ -170,5 +171,26 @@ class DetentionTest {
         Detention found = Counting.count(heldUntil(22), TARIFF, ESC, true);
         assertThat(found.charge(TARIFF)).isEqualTo(new Money(10000 + 10000 + 20000 + 20000));
         assertThat(found).hasToString("CN 400100 at ESCPAP1 4 chargeable days");
+    }
+
+    @Test
+    void aDayTheRoadDeclaredClosedIsNeitherFreeNorCharged() {
+        TariffCalendar storm = TariffCalendar.STANDARD.declaring(LocalDate.of(2025, 1, 20), "blizzard");
+        Detention found = Counting.count(heldUntil(22), TARIFF, ESC, true, storm);
+        assertThat(found.freeUntil()).contains(LocalDate.of(2025, 1, 16));
+        assertThat(found.chargeable()).isEqualTo(3);
+        assertThat(Counting.count(heldUntil(22), TARIFF, ESC, true).chargeable())
+                .isEqualTo(4);
+    }
+
+    @Test
+    void aDeclaredDayInsideFreeTimePushesTheFreeTimeOn() {
+        TariffCalendar storm = TariffCalendar.STANDARD.declaring(LocalDate.of(2025, 1, 15), "blizzard");
+        Detention found = Counting.count(heldUntil(22), TARIFF, ESC, true, storm);
+        assertThat(found.clockStarts()).isEqualTo(LocalDate.of(2025, 1, 16));
+        assertThat(found.freeUntil()).contains(LocalDate.of(2025, 1, 17));
+        assertThat(found.chargeable()).isEqualTo(3);
+        assertThat(Counting.clockStartsOn(LocalDate.of(2025, 1, 14), storm)).isEqualTo(LocalDate.of(2025, 1, 16));
+        assertThat(Counting.freeTimeEnds(LocalDate.of(2025, 1, 14), 0, storm)).isEmpty();
     }
 }

@@ -4,6 +4,7 @@ import io.github.rkaushikdev.drawbarline.Details;
 import io.github.rkaushikdev.drawbarline.TariffError;
 import io.github.rkaushikdev.drawbarline.customers.Industry;
 import io.github.rkaushikdev.drawbarline.days.Days;
+import io.github.rkaushikdev.drawbarline.days.TariffCalendar;
 import io.github.rkaushikdev.drawbarline.marks.CarMark;
 import java.time.LocalDate;
 import java.util.List;
@@ -62,7 +63,10 @@ public record Relief(CarMark car, String industry, int days, String reason) {
         }
         LocalDate clock = Days.addChargeableDays(detention.clockStarts(), daysLater);
         Optional<LocalDate> freeUntil = Counting.freeTimeEnds(clock, tariff.freeDays(detention.loaded()));
-        int charged = Counting.chargedDays(Counting.firstCharged(clock, freeUntil), detention.countedTo());
+        int charged = Counting.chargedDays(
+                Counting.firstCharged(clock, freeUntil, TariffCalendar.STANDARD),
+                detention.countedTo(),
+                TariffCalendar.STANDARD);
         return detention.recounted(clock, freeUntil, charged);
     }
 

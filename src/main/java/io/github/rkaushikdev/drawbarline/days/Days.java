@@ -18,7 +18,9 @@ import java.util.Optional;
  *
  * <p>The holidays are computed rather than tabled, so nobody has to remember to extend a table
  * every December. The observance rule is the ordinary federal one: a holiday landing on a Saturday
- * is kept the Friday before, and one landing on a Sunday the Monday after.
+ * is kept the Friday before, and one landing on a Sunday the Monday after. The chargeable day
+ * readings here are the standard calendar's; days the road declares closed are on a {@link
+ * TariffCalendar}.
  */
 public final class Days {
 
@@ -78,44 +80,23 @@ public final class Days {
         return day.getDayOfWeek() == DayOfWeek.SATURDAY || day.getDayOfWeek() == DayOfWeek.SUNDAY;
     }
 
-    /** A day demurrage may be charged for. */
+    /** A day demurrage may be charged for on the standard calendar. */
     public static boolean isChargeable(LocalDate day) {
-        return !isWeekend(day) && !isHoliday(day);
+        return TariffCalendar.STANDARD.isChargeable(day);
     }
 
     /** How many chargeable days there are from one day to another, both ends counted. */
     public static int chargeableDays(LocalDate first, LocalDate last) {
-        if (last.isBefore(first)) {
-            throw new CalendarError(
-                    "that span runs backwards", Details.of("first", first.toString(), "last", last.toString()));
-        }
-        int count = 0;
-        for (LocalDate day = first; !day.isAfter(last); day = day.plusDays(1)) {
-            if (isChargeable(day)) {
-                count++;
-            }
-        }
-        return count;
+        return TariffCalendar.STANDARD.chargeableDays(first, last);
     }
 
     /** The first chargeable day strictly after a day. */
     public static LocalDate nextChargeable(LocalDate day) {
-        LocalDate found = day.plusDays(1);
-        while (!isChargeable(found)) {
-            found = found.plusDays(1);
-        }
-        return found;
+        return TariffCalendar.STANDARD.nextChargeable(day);
     }
 
     /** Walk forward a number of chargeable days, which is how free time expires. */
     public static LocalDate addChargeableDays(LocalDate day, int count) {
-        if (count < 0) {
-            throw new CalendarError("free time does not run backwards", Details.of("count", count));
-        }
-        LocalDate found = day;
-        for (int step = 0; step < count; step++) {
-            found = nextChargeable(found);
-        }
-        return found;
+        return TariffCalendar.STANDARD.addChargeableDays(day, count);
     }
 }
