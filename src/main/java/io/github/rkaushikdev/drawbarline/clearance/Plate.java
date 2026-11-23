@@ -38,6 +38,6 @@ public enum Plate {
 
     /** Whether a load fits inside the outline. */
     public boolean holds(Dimensions load) {
-        return load.height().compareTo(height) <= 0 && load.width().compareTo(width) <= 0;
+        return load.within(height, width);
     }
 }

@@ -16,8 +16,9 @@ import java.util.Objects;
  * <p>The clearances are the road's own, off the valuation maps, and they are the governing
  * dimension at each place rather than the nominal one. Bark River carries the low overhead on this
  * railroad and it is why nothing over plate F goes north of Powers; the Wallace highway bridge is
- * the narrow place, and a route is governed by both, each at its own place. A station with nothing
- * filed reads as open.
+ * the narrow place, and a route is governed by both, each at its own place. A load that clears a
+ * place by less than {@link #CLOSE_MARGIN} still goes, slowly. A station with nothing filed reads
+ * as open.
  */
 public record Clearance(String station, Length overhead, Length side, String what) {
 
@@ -26,6 +27,9 @@ public record Clearance(String station, Length overhead, Length side, String wha
      * bridge at Wallace is the narrow one.
      */
     public static final Map<String, Clearance> CHART = chart();
+
+    /** How much room a load needs to spare, on top and at the side, to move at track speed. */
+    public static final Length CLOSE_MARGIN = new Length(3);
 
     /** What a station with no restriction filed clears. */
     public static final Clearance OPEN = new Clearance("ESC", Length.of(23, 0), Length.of(13, 6), "no restriction");
@@ -54,7 +58,7 @@ public record Clearance(String station, Length overhead, Length side, String wha
 
     /** Whether a load fits under the overhead and inside the side clearance. */
     public boolean clears(Dimensions load) {
-        return shortfalls(load).isEmpty();
+        return load.within(overhead, side);
     }
 
     /** Every way a load does not fit here, the overhead before the side. */
@@ -67,6 +71,15 @@ public record Clearance(String station, Length overhead, Length side, String wha
             found.add(station + " clears " + side + " wide and the load is " + load.width());
         }
         return List.copyOf(found);
+    }
+
+    /**
+     * Whether a load that fits here fits by less than {@link #CLOSE_MARGIN} on top or at the side.
+     * A load that fits by an inch is not a load that will fit if it shifted in transit, so it goes
+     * through at restricted speed with somebody watching.
+     */
+    public boolean close(Dimensions load) {
+        return clears(load) && !load.within(overhead.minus(CLOSE_MARGIN), side.minus(CLOSE_MARGIN));
     }
 
     /** {@code BKR (highway overpass) 17'4" over 12'6" wide}. */
@@ -124,6 +137,18 @@ public record Clearance(String station, Length overhead, Length side, String wha
     public static List<String> checkRoute(Dimensions load, List<String> route) {
         return along(route).stream()
                 .flatMap(place -> place.shortfalls(load).stream())
+                .toList();
+    }
+
+    /**
+     * The places on a route a load clears by less than the margin, in route order: where the train
+     * slows to restricted speed and a man rides the car through. A place the load does not clear at
+     * all is a refusal for {@link #checkRoute}, not a slow order.
+     */
+    public static List<String> slowOrders(Dimensions load, List<String> route) {
+        return along(route).stream()
+                .filter(place -> place.close(load))
+                .map(place -> place + ", restricted speed")
                 .toList();
     }
 

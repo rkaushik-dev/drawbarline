@@ -210,4 +210,53 @@ class ClearanceTest {
                 .asString()
                 .startsWith("WAL");
     }
+
+    @Test
+    void aLoadOnADeckIsMeasuredFromTheRail() {
+        Dimensions found = Dimensions.onDeck(Length.of(4, 2), Length.of(10, 0), Length.of(10, 6));
+        assertThat(found.height()).isEqualTo(Length.of(14, 2));
+        assertThat(found.width()).isEqualTo(Length.of(10, 6));
+        assertThat(found.smallestPlate()).contains(Plate.B);
+        assertThat(Dimensions.onDeck(Length.of(4, 2), Length.of(12, 10), Length.of(10, 6))
+                        .smallestPlate())
+                .contains(Plate.F);
+    }
+
+    @Test
+    void aLoadOnADeckStandsSomeHeightAboveIt() {
+        assertThatThrownBy(() -> Dimensions.onDeck(Length.of(4, 2), Length.ZERO, Length.of(10, 6)))
+                .isInstanceOf(ClearanceError.class);
+    }
+
+    @Test
+    void aLoadFitsWithinBothEdges() {
+        assertThat(ORDINARY.within(Length.of(15, 4), Length.of(10, 6))).isTrue();
+        assertThat(ORDINARY.within(Length.of(15, 3), Length.of(10, 6))).isFalse();
+        assertThat(ORDINARY.within(Length.of(15, 4), Length.of(10, 5))).isFalse();
+    }
+
+    @Test
+    void aLoadInsideTheMarginIsCloseAndOneOutsideItIsNot() {
+        Clearance bark = Clearance.clearanceAt("BKR");
+        assertThat(bark.close(new Dimensions(Length.of(17, 2), Length.of(10, 6))))
+                .isTrue();
+        assertThat(bark.close(new Dimensions(Length.of(17, 1), Length.of(10, 6))))
+                .isFalse();
+        assertThat(bark.close(new Dimensions(Length.of(15, 0), Length.of(12, 4))))
+                .isTrue();
+        assertThat(bark.close(new Dimensions(Length.of(17, 5), Length.of(10, 6))))
+                .isFalse();
+    }
+
+    @Test
+    void aCloseLoadRunsAtRestrictedSpeedWhereItIsClose() {
+        Dimensions found = new Dimensions(Length.of(17, 2), Length.of(11, 0));
+        List<String> route = List.of("ESC", "BKR", "PWR", "WAL");
+        assertThat(Clearance.clearsRoute(found, route)).isTrue();
+        assertThat(Clearance.slowOrders(found, route))
+                .containsExactly(
+                        "BKR (highway overpass) 17'4\" over 12'6\" wide, restricted speed",
+                        "WAL (highway bridge) 21' over 11'2\" wide, restricted speed");
+        assertThat(Clearance.slowOrders(ORDINARY, route)).isEmpty();
+    }
 }
