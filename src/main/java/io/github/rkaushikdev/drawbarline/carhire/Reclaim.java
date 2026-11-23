@@ -125,24 +125,28 @@ public record Reclaim(CarMark car, ReclaimReason reason, Interval interval, Mone
         return reclaimsFor(car, stream, table, window, rules);
     }
 
-    /** Every reclaim the stream supports inside a window under the rules asked for, in rule order. */
+    /**
+     * Every reclaim the stream supports inside a window under the rules asked for, in rule order.
+     *
+     * <p>An hour comes back once however many holds it sits in. A car bad ordered while it stood
+     * under embargo is the owner's for the overlap, so the lower numbered rule takes the hours it
+     * covers and a later rule only takes what is left: an owner who sees the same hours reclaimed
+     * under two rules disputes both.
+     */
     public static List<Reclaim> reclaimsFor(
             Car car, CarStream stream, RateTable table, Interval window, Set<ReclaimReason> rules) {
         List<Reclaim> found = new ArrayList<>();
+        List<Interval> taken = new ArrayList<>();
         for (ReclaimReason rule : ReclaimReason.values()) {
-            if (!rules.contains(rule)) {
-                continue;
-            }
-            for (Interval span : holds(rule, stream, window.end())) {
-                found.add(priced(car, table, window, span, rule));
+            List<Interval> spans = rules.contains(rule) ? holds(rule, stream, window.end()) : List.of();
+            for (Interval span : spans) {
+                for (Interval left : span.clip(window).without(taken)) {
+                    found.add(new Reclaim(car.mark(), rule, left, Accrual.hourly(car, table, left)));
+                    taken.add(left);
+                }
             }
         }
-        return found.stream().filter(one -> !one.interval().isEmpty()).toList();
-    }
-
-    private static Reclaim priced(Car car, RateTable table, Interval window, Interval span, ReclaimReason reason) {
-        Interval cut = span.clip(window);
-        return new Reclaim(car.mark(), reason, cut, Accrual.hourly(car, table, cut));
+        return List.copyOf(found);
     }
 
     /** A charge with its reclaims taken off, which never goes below nothing. */

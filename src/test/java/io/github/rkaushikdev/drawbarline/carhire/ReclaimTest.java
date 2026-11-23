@@ -9,6 +9,7 @@ import static io.github.rkaushikdev.drawbarline.clock.Clock.utc;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.catchThrowableOfType;
+import static org.assertj.core.api.Assertions.tuple;
 
 import io.github.rkaushikdev.drawbarline.EventError;
 import io.github.rkaushikdev.drawbarline.clock.Interval;
@@ -327,5 +328,48 @@ class ReclaimTest {
                 .extracting(Reclaim::reason)
                 .containsExactly(ReclaimReason.REPAIRS, ReclaimReason.SHIPPER_DELAY, ReclaimReason.EMBARGO);
         assertThat(Reclaim.holds(ReclaimReason.EMBARGO, stream, JANUARY.end())).hasSize(1);
+    }
+
+    @Test
+    void aBadOrderUnderAnEmbargoIsReclaimedOnceUnderTheLowerRule() {
+        CarStream stream = aVisit(
+                at(10, 8, EventKind.HELD),
+                at(11, 8, EventKind.BAD_ORDERED),
+                at(13, 8, EventKind.REPAIRED),
+                at(14, 8, EventKind.FREED));
+        List<Reclaim> found = reclaimsFor(aCar(), stream, aTable(), JANUARY);
+        assertThat(found)
+                .extracting(Reclaim::reason, Reclaim::interval)
+                .containsExactly(
+                        tuple(ReclaimReason.REPAIRS, new Interval(utc(2025, 1, 11, 8), utc(2025, 1, 13, 8))),
+                        tuple(ReclaimReason.EMBARGO, new Interval(utc(2025, 1, 10, 8), utc(2025, 1, 11, 8))),
+                        tuple(ReclaimReason.EMBARGO, new Interval(utc(2025, 1, 13, 8), utc(2025, 1, 14, 8))));
+        Money total = Money.total(found.stream().map(Reclaim::amount).toList());
+        assertThat(total).isEqualTo(new Money(463 * 96));
+    }
+
+    @Test
+    void whenTheOwnerDoesNotAnswerForTheRepairTheEmbargoTakesEveryHour() {
+        CarStream stream = aVisit(
+                at(10, 8, EventKind.HELD),
+                at(11, 8, EventKind.BAD_ORDERED),
+                at(13, 8, EventKind.REPAIRED),
+                at(14, 8, EventKind.FREED));
+        assertThat(reclaimsFor(aCar(), stream, aTable(), JANUARY, false))
+                .extracting(Reclaim::interval)
+                .containsExactly(new Interval(utc(2025, 1, 10, 8), utc(2025, 1, 14, 8)));
+    }
+
+    @Test
+    void aShipperDelayUnderAnEmbargoIsNotReclaimedTwice() {
+        CarStream stream = aVisit(
+                placedAt(8, 8, true),
+                at(11, 8, EventKind.HELD),
+                at(12, 8, EventKind.FREED),
+                onTheTrack(13, 8, EventKind.RELEASED),
+                onTheTrack(14, 8, EventKind.PULLED));
+        List<Reclaim> found = reclaimsFor(aCar(), stream, aTable(), JANUARY, WITH_SHIPPERS);
+        assertThat(found).extracting(Reclaim::reason).containsExactly(ReclaimReason.SHIPPER_DELAY);
+        assertThat(found.get(0).hundredthHours()).isEqualTo(7200);
     }
 }

@@ -15,6 +15,7 @@ import java.lang.reflect.RecordComponent;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class ClockTest {
@@ -168,5 +169,41 @@ class ClockTest {
     void anIntervalPrintsBothEndsInUtc() {
         Interval span = new Interval(utc(2025, 1, 1, 6, 0), utc(2025, 1, 2, 7, 30));
         assertThat(span).hasToString("2025-01-01 06:00Z to 2025-01-02 07:30Z");
+    }
+
+    static Interval hours(int from, int to) {
+        return new Interval(
+                utc(2025, 1, 1, 0).plus(Duration.ofHours(from)),
+                utc(2025, 1, 1, 0).plus(Duration.ofHours(to)));
+    }
+
+    @Test
+    void takingNothingOutLeavesTheWholeInterval() {
+        assertThat(hours(0, 10).without(List.of())).containsExactly(hours(0, 10));
+        assertThat(hours(0, 10).without(List.of(hours(12, 14)))).containsExactly(hours(0, 10));
+        assertThat(hours(0, 10).without(List.of(hours(10, 14)))).containsExactly(hours(0, 10));
+    }
+
+    @Test
+    void takingOutTheMiddleLeavesBothEnds() {
+        assertThat(hours(0, 10).without(List.of(hours(3, 5)))).containsExactly(hours(0, 3), hours(5, 10));
+    }
+
+    @Test
+    void takingOutAnEdgeLeavesTheOtherSide() {
+        assertThat(hours(0, 10).without(List.of(hours(-2, 4)))).containsExactly(hours(4, 10));
+        assertThat(hours(0, 10).without(List.of(hours(6, 12)))).containsExactly(hours(0, 6));
+    }
+
+    @Test
+    void overlappingCutsInAnyOrderAreTakenTogether() {
+        assertThat(hours(0, 10).without(List.of(hours(6, 8), hours(2, 4), hours(3, 7))))
+                .containsExactly(hours(0, 2), hours(8, 10));
+    }
+
+    @Test
+    void coveringTheWholeIntervalLeavesNothing() {
+        assertThat(hours(0, 10).without(List.of(hours(0, 10)))).isEmpty();
+        assertThat(hours(2, 2).without(List.of())).isEmpty();
     }
 }

@@ -5,6 +5,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 
@@ -55,6 +58,31 @@ public record Interval(Instant start, Instant end) {
             return new Interval(window.start, window.start);
         }
         return new Interval(from, to);
+    }
+
+    /**
+     * What is left of this interval once every one of {@code others} is taken out, in order and
+     * never empty. Nothing is left of an empty interval.
+     */
+    public List<Interval> without(List<Interval> others) {
+        List<Interval> left = new ArrayList<>();
+        Instant from = start;
+        List<Interval> cuts = others.stream()
+                .filter(this::overlaps)
+                .sorted(Comparator.comparing(Interval::start))
+                .toList();
+        for (Interval cut : cuts) {
+            if (cut.start.isAfter(from)) {
+                left.add(new Interval(from, cut.start));
+            }
+            if (cut.end.isAfter(from)) {
+                from = cut.end;
+            }
+        }
+        if (end.isAfter(from)) {
+            left.add(new Interval(from, end));
+        }
+        return List.copyOf(left);
     }
 
     public Interval shift(Duration by) {
