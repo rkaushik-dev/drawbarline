@@ -167,4 +167,47 @@ class ClearanceTest {
         Dimensions over = new Dimensions(CHART.get("BKR").overhead().plus(new Length(1)), Length.of(10, 0));
         assertThat(Clearance.clearsRoute(over, List.of("BKR"))).isFalse();
     }
+
+    @Test
+    void theNarrowestPlaceOnARouteIsNotTheLowest() {
+        List<String> route = List.of("ESC", "BKR", "PWR", "WAL", "MEN");
+        assertThat(Clearance.tightestOn(route).station()).isEqualTo("BKR");
+        assertThat(Clearance.narrowestOn(route).station()).isEqualTo("WAL");
+        assertThat(Clearance.narrowestOn(route).side()).isEqualTo(Length.of(11, 2));
+    }
+
+    @Test
+    void aTieGoesToThePlaceReachedFirst() {
+        assertThat(Clearance.narrowestOn(List.of("IMT", "BKR")).station()).isEqualTo("IMT");
+        assertThat(Clearance.narrowestOn(List.of("BKR", "IMT")).station()).isEqualTo("BKR");
+    }
+
+    @Test
+    void aRouteWithNothingNarrowReadsOpenWide() {
+        assertThat(Clearance.narrowestOn(List.of("ESC", "PWR")).side()).isEqualTo(Length.of(13, 6));
+        assertThatThrownBy(() -> Clearance.narrowestOn(List.of())).isInstanceOf(ClearanceError.class);
+    }
+
+    @Test
+    void aPlaceNamesEachWayALoadDoesNotFit() {
+        Clearance bark = Clearance.clearanceAt("BKR");
+        assertThat(bark.shortfalls(ORDINARY)).isEmpty();
+        assertThat(bark.shortfalls(TALL)).containsExactly("BKR clears 17'4\" and the load is 18'");
+        assertThat(bark.shortfalls(HUGE))
+                .containsExactly(
+                        "BKR clears 17'4\" and the load is 21'6\"", "BKR clears 12'6\" wide and the load is 13'2\"");
+        assertThat(bark.clears(TALL)).isFalse();
+    }
+
+    @Test
+    void aRouteIsReadPlaceByPlaceInOrder() {
+        assertThat(Clearance.along(List.of("PWR", "BKR")))
+                .extracting(Clearance::station)
+                .containsExactly("PWR", "BKR");
+        assertThat(Clearance.checkRoute(HUGE, List.of("WAL", "BKR")))
+                .hasSize(4)
+                .first()
+                .asString()
+                .startsWith("WAL");
+    }
 }

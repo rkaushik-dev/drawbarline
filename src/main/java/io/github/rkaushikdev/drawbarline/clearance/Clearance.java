@@ -4,6 +4,7 @@ import io.github.rkaushikdev.drawbarline.measure.Length;
 import io.github.rkaushikdev.drawbarline.mileage.Mileage;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -14,8 +15,9 @@ import java.util.Objects;
  *
  * <p>The clearances are the road's own, off the valuation maps, and they are the governing
  * dimension at each place rather than the nominal one. Bark River carries the low overhead on this
- * railroad and it is why nothing over plate F goes north of Powers. A station with nothing filed
- * reads as open.
+ * railroad and it is why nothing over plate F goes north of Powers; the Wallace highway bridge is
+ * the narrow place, and a route is governed by both, each at its own place. A station with nothing
+ * filed reads as open.
  */
 public record Clearance(String station, Length overhead, Length side, String what) {
 
@@ -52,7 +54,19 @@ public record Clearance(String station, Length overhead, Length side, String wha
 
     /** Whether a load fits under the overhead and inside the side clearance. */
     public boolean clears(Dimensions load) {
-        return load.height().compareTo(overhead) <= 0 && load.width().compareTo(side) <= 0;
+        return shortfalls(load).isEmpty();
+    }
+
+    /** Every way a load does not fit here, the overhead before the side. */
+    public List<String> shortfalls(Dimensions load) {
+        List<String> found = new ArrayList<>();
+        if (load.height().compareTo(overhead) > 0) {
+            found.add(station + " clears " + overhead + " and the load is " + load.height());
+        }
+        if (load.width().compareTo(side) > 0) {
+            found.add(station + " clears " + side + " wide and the load is " + load.width());
+        }
+        return List.copyOf(found);
     }
 
     /** {@code BKR (highway overpass) 17'4" over 12'6" wide}. */
@@ -72,15 +86,34 @@ public record Clearance(String station, Length overhead, Length side, String wha
         return found;
     }
 
-    /** The place on a route that governs, which is the lowest overhead. */
-    public static Clearance tightestOn(List<String> route) {
+    /** The governing clearance at every place on a route, in route order, refusing an empty route. */
+    public static List<Clearance> along(List<String> route) {
         if (route.isEmpty()) {
             throw new ClearanceError("a route has at least one place");
         }
-        Clearance found = clearanceAt(route.get(0));
-        for (String station : route) {
-            Clearance here = clearanceAt(station);
-            if (here.overhead.inches() < found.overhead.inches()) {
+        return route.stream().map(Clearance::clearanceAt).toList();
+    }
+
+    /** The place on a route that governs the height of a load, which is the lowest overhead. */
+    public static Clearance tightestOn(List<String> route) {
+        return governing(route, Comparator.comparing(Clearance::overhead));
+    }
+
+    /**
+     * The place on a route that governs the width of a load, which is the narrowest side clearance.
+     * It is seldom the place with the low overhead: Bark River is low and Wallace is narrow, and a
+     * wide load measured against Bark River alone has been sent into the Wallace bridge before.
+     */
+    public static Clearance narrowestOn(List<String> route) {
+        return governing(route, Comparator.comparing(Clearance::side));
+    }
+
+    /** The first place on a route that is least by a measure, so a tie goes to the place reached first. */
+    private static Clearance governing(List<String> route, Comparator<Clearance> least) {
+        List<Clearance> places = along(route);
+        Clearance found = places.get(0);
+        for (Clearance here : places) {
+            if (least.compare(here, found) < 0) {
                 found = here;
             }
         }
@@ -89,20 +122,9 @@ public record Clearance(String station, Length overhead, Length side, String wha
 
     /** Every place on a route the load will not clear, overhead and side reported separately. */
     public static List<String> checkRoute(Dimensions load, List<String> route) {
-        if (route.isEmpty()) {
-            throw new ClearanceError("a route has at least one place");
-        }
-        List<String> found = new ArrayList<>();
-        for (String station : route) {
-            Clearance where = clearanceAt(station);
-            if (load.height().compareTo(where.overhead) > 0) {
-                found.add(station + " clears " + where.overhead + " and the load is " + load.height());
-            }
-            if (load.width().compareTo(where.side) > 0) {
-                found.add(station + " clears " + where.side + " wide and the load is " + load.width());
-            }
-        }
-        return List.copyOf(found);
+        return along(route).stream()
+                .flatMap(place -> place.shortfalls(load).stream())
+                .toList();
     }
 
     /** Whether a load clears every place on a route. */
