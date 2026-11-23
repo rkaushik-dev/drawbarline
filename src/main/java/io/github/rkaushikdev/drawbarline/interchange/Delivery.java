@@ -30,8 +30,8 @@ import java.util.Optional;
  * car is fit. The embargo register says whether anything is stopped. The interchange agreement says
  * whether that road takes that kind of car at that place at that hour. A crew standing at the
  * junction wants one answer, so this asks all three and gives back one list, in the order they would
- * be found: the paper on the car first, then what the railroad has stopped, then what the
- * connection will take.
+ * be found: the paper on the car first, then what the railroad has stopped that the car holds no
+ * permit through, then what the connection will take.
  *
  * <p>The daily cap needs a count, and the count comes off the event log rather than being carried
  * anywhere, because the cars already delivered today is exactly the sort of number that goes stale
@@ -93,7 +93,7 @@ public final class Delivery {
         if (commodity.isPresent()) {
             movement = movement.carrying(commodity.get());
         }
-        for (Embargo one : embargoes.against(day, movement)) {
+        for (Embargo one : embargoes.against(day, movement, car)) {
             findings.add(one + " is in force");
         }
 

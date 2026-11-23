@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.catchThrowableOfType;
 
+import io.github.rkaushikdev.drawbarline.marks.CarMark;
 import io.github.rkaushikdev.drawbarline.marks.ReportingMark;
 import io.github.rkaushikdev.drawbarline.mileage.MileageError;
 import java.time.LocalDate;
@@ -306,5 +307,82 @@ class EmbargoTest {
         register.issue(permitting());
         assertThat(register.lift(101, LocalDate.of(2025, 1, 20)).permitsAllowed())
                 .isTrue();
+    }
+
+    static final CarMark CAR = CarMark.parse("CN 400100");
+
+    /** A register holding embargo 101 at Hermansville, with permits allowed or not. */
+    static EmbargoRegister permitting(boolean allowed) {
+        Fields fields = new Fields();
+        fields.permitsAllowed = allowed;
+        fields.expires = Optional.of(LocalDate.of(2025, 1, 31));
+        EmbargoRegister register = new EmbargoRegister();
+        register.issue(fields.build());
+        return register;
+    }
+
+    static Permit aPermit(int number, LocalDate issued, LocalDate through) {
+        return new Permit(number, 101, CAR, issued, through, "PWRFRM");
+    }
+
+    @Test
+    void aPermitLetsItsCarThroughOnItsDaysOnly() {
+        EmbargoRegister register = permitting(true);
+        register.grant(aPermit(9, LocalDate.of(2025, 1, 14), LocalDate.of(2025, 1, 17)));
+        Movement there = Movement.anywhere().atStation("HRM");
+        assertThat(register.against(LocalDate.of(2025, 1, 15), there, CAR)).isEmpty();
+        assertThat(register.against(LocalDate.of(2025, 1, 18), there, CAR))
+                .extracting(Embargo::number)
+                .containsExactly(101);
+        assertThat(register.against(LocalDate.of(2025, 1, 15), there, CarMark.parse("CN 400101")))
+                .extracting(Embargo::number)
+                .containsExactly(101);
+        assertThat(register.against(LocalDate.of(2025, 1, 15), there)).hasSize(1);
+        assertThat(register.permitsFor(CAR, LocalDate.of(2025, 1, 17)))
+                .extracting(Permit::number)
+                .containsExactly(9);
+    }
+
+    @Test
+    void anEmbargoThatAllowsNoPermitsGrantsNone() {
+        EmbargoRegister register = permitting(false);
+        assertThatThrownBy(() -> register.grant(aPermit(9, LocalDate.of(2025, 1, 14), LocalDate.of(2025, 1, 17))))
+                .isInstanceOf(EmbargoError.class)
+                .hasMessageContaining("allows no permits");
+    }
+
+    @Test
+    void aPermitRunsOnlyWhileItsEmbargoDoes() {
+        EmbargoRegister register = permitting(true);
+        assertThatThrownBy(() -> register.grant(aPermit(9, LocalDate.of(2025, 1, 2), LocalDate.of(2025, 1, 7))))
+                .isInstanceOf(EmbargoError.class);
+        assertThatThrownBy(() -> register.grant(aPermit(9, LocalDate.of(2025, 1, 30), LocalDate.of(2025, 2, 2))))
+                .isInstanceOf(EmbargoError.class)
+                .hasMessageContaining("only while its embargo does");
+        assertThatThrownBy(() ->
+                        new EmbargoRegister().grant(aPermit(9, LocalDate.of(2025, 1, 14), LocalDate.of(2025, 1, 17))))
+                .isInstanceOf(EmbargoError.class)
+                .hasMessageContaining("no such embargo");
+    }
+
+    @Test
+    void aPermitNumberIsGrantedOnce() {
+        EmbargoRegister register = permitting(true);
+        register.grant(aPermit(9, LocalDate.of(2025, 1, 14), LocalDate.of(2025, 1, 17)));
+        assertThatThrownBy(() -> register.grant(aPermit(9, LocalDate.of(2025, 1, 20), LocalDate.of(2025, 1, 21))))
+                .isInstanceOf(EmbargoError.class);
+    }
+
+    @Test
+    void aPermitIsNumberedNamedAndDatedForward() {
+        assertThatThrownBy(
+                        () -> new Permit(0, 101, CAR, LocalDate.of(2025, 1, 14), LocalDate.of(2025, 1, 17), "PWRFRM"))
+                .isInstanceOf(EmbargoError.class);
+        assertThatThrownBy(() -> new Permit(9, 101, CAR, LocalDate.of(2025, 1, 14), LocalDate.of(2025, 1, 17), " "))
+                .isInstanceOf(EmbargoError.class);
+        assertThatThrownBy(() -> aPermit(9, LocalDate.of(2025, 1, 17), LocalDate.of(2025, 1, 14)))
+                .isInstanceOf(EmbargoError.class);
+        assertThat(aPermit(9, LocalDate.of(2025, 1, 14), LocalDate.of(2025, 1, 17)))
+                .hasToString("permit 9 on embargo 101 for CN 400100 2025-01-14 to 2025-01-17");
     }
 }

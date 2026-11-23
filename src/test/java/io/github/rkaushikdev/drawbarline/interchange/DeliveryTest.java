@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.rkaushikdev.drawbarline.agreements.InterchangeAgreement;
 import io.github.rkaushikdev.drawbarline.embargo.Embargo;
 import io.github.rkaushikdev.drawbarline.embargo.EmbargoRegister;
+import io.github.rkaushikdev.drawbarline.embargo.Permit;
 import io.github.rkaushikdev.drawbarline.events.Event;
 import io.github.rkaushikdev.drawbarline.events.EventKind;
 import io.github.rkaushikdev.drawbarline.events.EventLog;
@@ -232,5 +233,19 @@ class DeliveryTest {
         Offer offer = new Offer();
         offer.agreement = anAgreement(Set.of(CarKind.TANK));
         assertThat(offer.verdict().toString()).startsWith("CN 400100 held at ESC:");
+    }
+
+    @Test
+    void aCarWithAPermitGoesThroughTheEmbargoItWasGrantedOn() {
+        Offer offer = new Offer();
+        offer.embargoes = oneEmbargo(Embargo.builder(101, LocalDate.of(2025, 1, 6), "bridge out")
+                .station("ESC")
+                .permitsAllowed(true)
+                .build());
+        assertThat(offer.verdict().goes()).isFalse();
+        offer.embargoes.grant(new Permit(9, 101, CAR, LocalDate.of(2025, 1, 13), LocalDate.of(2025, 1, 15), "ESCPAP"));
+        assertThat(offer.verdict().goes()).isTrue();
+        offer.local = LocalDateTime.of(2025, 1, 16, 9, 0);
+        assertThat(offer.verdict().goes()).isFalse();
     }
 }
