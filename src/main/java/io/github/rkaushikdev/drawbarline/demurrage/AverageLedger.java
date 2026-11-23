@@ -2,10 +2,12 @@ package io.github.rkaushikdev.drawbarline.demurrage;
 
 import io.github.rkaushikdev.drawbarline.Details;
 import io.github.rkaushikdev.drawbarline.TariffError;
+import io.github.rkaushikdev.drawbarline.money.Money;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * One shipper, one month, every car that touched the balance under an average agreement.
@@ -61,13 +63,37 @@ public final class AverageLedger {
         return entries.stream().mapToInt(Entry::debits).sum();
     }
 
-    /** Set the month's credits against its debits and price what is left at the agreement's rate. */
+    /** The chargeable days past the offset, every car together. */
+    public int late() {
+        return entries.stream().mapToInt(Entry::late).sum();
+    }
+
+    /**
+     * Set the month's credits against its debits and price what is left at the agreement's rate,
+     * refusing a month with late days in it, which need the tariff to be priced.
+     */
     public Settlement settle() {
+        if (late() != 0) {
+            throw new TariffError(
+                    "a car ran past the offset, so the month is settled against the tariff",
+                    Details.of("shipper", agreement.shipper(), "late", late()));
+        }
+        return settle(Optional.empty());
+    }
+
+    /** Settle the month, the late days priced up the tariff in force. */
+    public Settlement settle(Tariff tariff) {
+        return settle(Optional.of(tariff));
+    }
+
+    private Settlement settle(Optional<Tariff> tariff) {
         int credits = credits();
         int debits = debits();
-        int owed = Math.max(debits - credits, 0);
-        return new Settlement(
-                agreement.shipper(), credits, debits, agreement.daily().times(owed));
+        Money averaged = agreement.daily().times(Math.max(debits - credits, 0));
+        Money late = Money.total(entries.stream()
+                .map(one -> tariff.map(priced -> one.lateCharge(priced)).orElse(Money.ZERO))
+                .toList());
+        return new Settlement(agreement.shipper(), credits, debits, averaged, late(), late);
     }
 
     /** How many cars were posted. */

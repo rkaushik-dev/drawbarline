@@ -7,6 +7,7 @@ import io.github.rkaushikdev.drawbarline.TariffError;
 import io.github.rkaushikdev.drawbarline.marks.CarMark;
 import io.github.rkaushikdev.drawbarline.money.Money;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
@@ -203,5 +204,78 @@ class AverageTest {
         AverageLedger second = new AverageLedger(AGREEMENT, LocalDate.of(2025, 2, 1));
         second.post(aDetention(2));
         assertThat(second.settle().amount()).isEqualTo(new Money(24000));
+    }
+
+    static final Tariff TARIFF = new Tariff(
+            "4200",
+            LocalDate.of(2024, 7, 1),
+            2,
+            1,
+            List.of(new Step(2, 10000), new Step(5, 20000), new Step(0, 40000)));
+
+    @Test
+    void aCarHeldPastFourDaysOwesItsLaterDaysLate() {
+        Entry found = Entry.of(aDetention(7));
+        assertThat(found.debits()).isEqualTo(AverageAgreement.OFFSET_DAYS);
+        assertThat(found.late()).isEqualTo(3);
+        assertThat(found).hasToString("CN 400100 4 debits 3 late");
+        assertThat(found.lateCharge(TARIFF)).isEqualTo(new Money(20000 + 40000 + 40000));
+    }
+
+    @Test
+    void aCarHeldExactlyFourDaysOwesNothingLate() {
+        Entry found = Entry.of(aDetention(4));
+        assertThat(found.late()).isZero();
+        assertThat(found.lateCharge(TARIFF)).isEqualTo(new Money(0));
+    }
+
+    @Test
+    void creditsAreNeverSetAgainstTheLateDays() {
+        AverageLedger ledger = january();
+        for (int car = 0; car < 6; car++) {
+            ledger.post(aDetention());
+        }
+        ledger.post(aDetention(6));
+        Settlement settled = ledger.settle(TARIFF);
+        assertThat(settled.netDebits()).isZero();
+        assertThat(settled.amount()).isEqualTo(new Money(0));
+        assertThat(settled.late()).isEqualTo(2);
+        assertThat(settled.lateAmount()).isEqualTo(new Money(20000 + 40000));
+        assertThat(settled.total()).isEqualTo(new Money(60000));
+        assertThat(settled).hasToString("PWRGRN 6 credits 4 debits $0.00 2 late $600.00");
+    }
+
+    @Test
+    void aMonthWithLateDaysNeedsTheTariffToSettle() {
+        AverageLedger ledger = january();
+        ledger.post(aDetention(5));
+        assertThat(ledger.late()).isEqualTo(1);
+        assertThatThrownBy(ledger::settle).isInstanceOf(TariffError.class).hasMessageContaining("past the offset");
+    }
+
+    @Test
+    void settlingAgainstTheTariffWithNothingLateIsTheSameSettlement() {
+        AverageLedger ledger = january();
+        ledger.post(aDetention());
+        ledger.post(aDetention(3));
+        assertThat(ledger.settle(TARIFF)).isEqualTo(ledger.settle());
+    }
+
+    @Test
+    void theAverageInvoiceCarriesTheLateDaysOnALineOfTheirOwn() {
+        AverageLedger ledger = january();
+        ledger.post(aDetention(6));
+        Invoice found = Invoice.assembleAverage(4101, ledger.settle(TARIFF), LocalDate.of(2025, 1, 1));
+        assertThat(found.lines()).hasSize(2);
+        assertThat(found.lines().get(1)).hasToString("all cars past the offset 2 days $600.00");
+        assertThat(found.total()).isEqualTo(new Money(48000 + 60000));
+        Invoice quiet = Invoice.assembleAverage(4102, january().settle(), LocalDate.of(2025, 1, 1));
+        assertThat(quiet.lines()).hasSize(1);
+    }
+
+    @Test
+    void lateDaysComeOnlyAfterEveryOffsetDebit() {
+        assertThatThrownBy(() -> new Entry(CAR, "PWRGRN1", 0, 3, 1)).isInstanceOf(TariffError.class);
+        assertThatThrownBy(() -> new Entry(CAR, "PWRGRN1", 1, 0, 1)).isInstanceOf(TariffError.class);
     }
 }

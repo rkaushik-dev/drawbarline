@@ -7,6 +7,7 @@ import io.github.rkaushikdev.drawbarline.money.Money;
 import io.github.rkaushikdev.drawbarline.util.Text;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
@@ -22,11 +23,12 @@ import java.util.Optional;
  * are billed for are unusual.
  *
  * <p>A shipper on an average agreement gets a different document: one line with the net debits
- * and the net amount. Mixing the two on one invoice produces a total nobody can check, because the
- * per car amounts under an agreement do not add up to the amount billed and are not supposed to.
+ * and the net amount, and a second for the days cars ran past the offset, priced at the tariff.
+ * Mixing per car lines into it produces a total nobody can check, because the per car amounts
+ * under an agreement do not add up to the amount billed and are not supposed to.
  *
  * @param monthOf the first day of the month the invoice covers
- * @param average whether this is the one line invoice of a shipper on an average agreement
+ * @param average whether this is the invoice of a shipper on an average agreement
  */
 public record Invoice(int number, String shipper, LocalDate monthOf, List<Line> lines, boolean average) {
 
@@ -115,10 +117,18 @@ public record Invoice(int number, String shipper, LocalDate monthOf, List<Line> 
         return new Invoice(number, shipper, monthOf, lines);
     }
 
-    /** Cut the one line invoice a shipper on an average agreement gets. */
+    /**
+     * Cut the invoice a shipper on an average agreement gets: one line for the net debits, and a
+     * second for the late days at the tariff when any car ran past the offset.
+     */
     public static Invoice assembleAverage(int number, Settlement settlement, LocalDate monthOf) {
-        Line line = new Line(
-                Optional.empty(), "average agreement", monthOf, monthOf, settlement.netDebits(), settlement.amount());
-        return new Invoice(number, settlement.shipper(), monthOf, List.of(line), true);
+        List<Line> lines = new ArrayList<>();
+        lines.add(new Line(
+                Optional.empty(), "average agreement", monthOf, monthOf, settlement.netDebits(), settlement.amount()));
+        if (settlement.late() != 0) {
+            lines.add(new Line(
+                    Optional.empty(), "past the offset", monthOf, monthOf, settlement.late(), settlement.lateAmount()));
+        }
+        return new Invoice(number, settlement.shipper(), monthOf, lines, true);
     }
 }

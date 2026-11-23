@@ -14,15 +14,19 @@ import java.util.Optional;
  * <p>A shipper who moves cars in volume can ask to be billed on an average instead of car by car.
  * Every car they turn back inside the first free day earns a credit, every chargeable day earns a
  * debit, and at the end of the month only the debits left over are billed, at the agreement's own
- * flat rate rather than up the tariff steps: the customer trades the cheap early days away for
- * protection against the expensive late ones. The credits offset that month and no other; see
- * {@link AverageLedger}.
+ * flat rate rather than up the tariff steps. The protection stops at {@link #OFFSET_DAYS}: a car
+ * kept longer than that is not being worked on an average, and its later days go out at the tariff
+ * with no credit set against them. The credits offset that month and no other; see {@link
+ * AverageLedger}.
  *
  * @param shipper the shipper's code
  * @param dailyCents what one net debit costs
  * @param expires the last day the agreement covers, absent while it stands
  */
 public record AverageAgreement(String shipper, long dailyCents, LocalDate effective, Optional<LocalDate> expires) {
+
+    /** How many chargeable days of one car the credits may be set against. */
+    public static final int OFFSET_DAYS = 4;
 
     public AverageAgreement {
         Objects.requireNonNull(shipper, "shipper");
