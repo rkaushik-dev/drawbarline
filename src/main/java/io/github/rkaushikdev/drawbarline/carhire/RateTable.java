@@ -2,6 +2,7 @@ package io.github.rkaushikdev.drawbarline.carhire;
 
 import io.github.rkaushikdev.drawbarline.Details;
 import io.github.rkaushikdev.drawbarline.RateError;
+import io.github.rkaushikdev.drawbarline.fleet.Car;
 import io.github.rkaushikdev.drawbarline.fleet.CarTypeCode;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -9,6 +10,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Every car hire band the road has on file, indexed by car type so a lookup is not a scan.
@@ -29,7 +31,7 @@ public final class RateTable {
     public Band add(Band band) {
         List<Band> standing = bands.computeIfAbsent(band.typeCode(), code -> new ArrayList<>());
         for (Band other : standing) {
-            if (other.effective().equals(band.effective()) && other.agesOverlap(band)) {
+            if (other.effective().equals(band.effective()) && other.ages().overlaps(band.ages())) {
                 throw new RateError(
                         "that band overlaps one already filed",
                         Details.of(
@@ -49,17 +51,45 @@ public final class RateTable {
         if (age < 0) {
             throw new RateError("a car has no negative age", Details.of("age", age));
         }
-        List<Band> standing = bands.get(typeCode);
-        if (standing == null || standing.isEmpty()) {
+        if (bands.getOrDefault(typeCode, List.of()).isEmpty()) {
             throw new RateError("no rate on file for that car type", Details.of("type_code", typeCode.toString()));
         }
-        return standing.stream()
-                .filter(band -> !band.effective().isAfter(on) && band.coversAge(age))
-                .max(Comparator.comparing(Band::effective))
+        return bandFor(typeCode, age, on)
                 .map(Band::rate)
                 .orElseThrow(() -> new RateError(
                         "no rate in effect",
                         Details.of("type_code", typeCode.toString(), "age", age, "on", on.toString())));
+    }
+
+    /** The band a car of that type and age is priced on that day: the latest one covering its age. */
+    public Optional<Band> bandFor(CarTypeCode typeCode, int age, LocalDate on) {
+        return bands.getOrDefault(typeCode, List.of()).stream()
+                .filter(band -> !band.effective().isAfter(on) && band.coversAge(age))
+                .max(Comparator.comparing(Band::effective));
+    }
+
+    /**
+     * The ages of a car type the schedule has no rate for on a day, through the last year a car may
+     * stay in interchange service, each run of missing ages once. A schedule that stops at forty
+     * leaves every car from forty one to forty nine priced at nothing the first time one of them
+     * is received, and that is found when the close refuses rather than when the sheet was filed.
+     */
+    public List<AgeRange> gaps(CarTypeCode typeCode, LocalDate on) {
+        List<AgeRange> found = new ArrayList<>();
+        int missingFrom = -1;
+        for (int age = 0; age < Car.INTERCHANGE_LIFE_YEARS; age++) {
+            boolean priced = bandFor(typeCode, age, on).isPresent();
+            if (!priced && missingFrom < 0) {
+                missingFrom = age;
+            } else if (priced && missingFrom >= 0) {
+                found.add(new AgeRange(missingFrom, age - 1));
+                missingFrom = -1;
+            }
+        }
+        if (missingFrom >= 0) {
+            found.add(new AgeRange(missingFrom, Car.INTERCHANGE_LIFE_YEARS - 1));
+        }
+        return List.copyOf(found);
     }
 
     /** Every date the rate for a car type changes, in order. */

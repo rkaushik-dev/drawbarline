@@ -1,7 +1,5 @@
 package io.github.rkaushikdev.drawbarline.carhire;
 
-import io.github.rkaushikdev.drawbarline.Details;
-import io.github.rkaushikdev.drawbarline.RateError;
 import io.github.rkaushikdev.drawbarline.fleet.CarTypeCode;
 import java.time.LocalDate;
 import java.util.Objects;
@@ -18,20 +16,16 @@ public record Band(CarTypeCode typeCode, int fromAge, int toAge, LocalDate effec
         Objects.requireNonNull(typeCode, "typeCode");
         Objects.requireNonNull(effective, "effective");
         Objects.requireNonNull(rate, "rate");
-        if (fromAge < 0) {
-            throw new RateError("an age band starts at zero or later", Details.of("from_age", fromAge));
-        }
-        if (toAge < fromAge) {
-            throw new RateError("an age band ends after it starts", Details.of("from_age", fromAge, "to_age", toAge));
-        }
+        new AgeRange(fromAge, toAge);
+    }
+
+    /** The ages the band speaks for. */
+    public AgeRange ages() {
+        return new AgeRange(fromAge, toAge);
     }
 
     /** Whether a car of this age falls in the band. */
     public boolean coversAge(int age) {
-        return fromAge <= age && age <= toAge;
-    }
-
-    boolean agesOverlap(Band other) {
-        return fromAge <= other.toAge && other.fromAge <= toAge;
+        return ages().covers(age);
     }
 }

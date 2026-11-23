@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import io.github.rkaushikdev.drawbarline.RateError;
 import io.github.rkaushikdev.drawbarline.fleet.CarTypeCode;
 import java.time.LocalDate;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class RatesTest {
@@ -187,5 +188,60 @@ class RatesTest {
     @Test
     void theTableCountsItsBands() {
         assertThat(aTable().size()).isEqualTo(5);
+    }
+
+    @Test
+    void anAgeRangeCoversBothEnds() {
+        AgeRange found = new AgeRange(10, 19);
+        assertThat(found.covers(10)).isTrue();
+        assertThat(found.covers(19)).isTrue();
+        assertThat(found.covers(20)).isFalse();
+        assertThat(found).hasToString("10-19");
+    }
+
+    @Test
+    void ageRangesThatShareAnAgeOverlap() {
+        assertThat(new AgeRange(0, 9).overlaps(new AgeRange(9, 12))).isTrue();
+        assertThat(new AgeRange(0, 9).overlaps(new AgeRange(10, 12))).isFalse();
+        assertThat(new AgeRange(10, 12).overlaps(new AgeRange(0, 9))).isFalse();
+    }
+
+    @Test
+    void anAgeRangeIsCheckedWhereverItIsFiled() {
+        assertThatThrownBy(() -> new AgeRange(-1, 4)).isInstanceOf(RateError.class);
+        assertThatThrownBy(() -> new AgeRange(5, 4)).isInstanceOf(RateError.class);
+        assertThat(new Band(HOPPER, 3, 7, date(2024, 7, 1), new Rate(1, 1)).ages())
+                .isEqualTo(new AgeRange(3, 7));
+    }
+
+    @Test
+    void theBandAnAgeIsPricedOnIsTheLatestCoveringIt() {
+        assertThat(aTable().bandFor(HOPPER, 5, date(2025, 8, 1)).orElseThrow().effective())
+                .isEqualTo(date(2025, 7, 1));
+        assertThat(aTable().bandFor(HOPPER, 15, date(2025, 8, 1)).orElseThrow().effective())
+                .isEqualTo(date(2024, 7, 1));
+        assertThat(aTable().bandFor(HOPPER, 5, date(2024, 6, 30))).isEmpty();
+        assertThat(aTable().bandFor(new CarTypeCode("T104"), 5, date(2025, 8, 1)))
+                .isEmpty();
+    }
+
+    @Test
+    void aScheduleThatReachesFiftyHasNoGaps() {
+        assertThat(aTable().gaps(HOPPER, date(2025, 1, 14))).isEmpty();
+        assertThat(aTable().gaps(BOX, date(2025, 1, 14))).isEmpty();
+    }
+
+    @Test
+    void theAgesNoBandCoversComeBackAsRuns() {
+        RateTable table = new RateTable();
+        table.add(new Band(HOPPER, 0, 9, date(2024, 7, 1), new Rate(4630, 1210)));
+        table.add(new Band(HOPPER, 15, 39, date(2024, 7, 1), new Rate(3180, 1210)));
+        assertThat(table.gaps(HOPPER, date(2025, 1, 14))).containsExactly(new AgeRange(10, 14), new AgeRange(40, 49));
+    }
+
+    @Test
+    void aTypeWithNothingFiledIsOneGapAndADayBeforeTheFilingIsToo() {
+        assertThat(aTable().gaps(new CarTypeCode("T104"), date(2025, 1, 14))).isEqualTo(List.of(new AgeRange(0, 49)));
+        assertThat(aTable().gaps(HOPPER, date(2024, 6, 30))).containsExactly(new AgeRange(0, 49));
     }
 }

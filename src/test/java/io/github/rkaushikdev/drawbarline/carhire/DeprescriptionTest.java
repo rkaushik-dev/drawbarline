@@ -230,4 +230,25 @@ class DeprescriptionTest {
         Car older = aCar(LocalDate.of(2010, 1, 1));
         assertThat(payable(older, aSchedule(), elections, DAY)).contains(new Rate(3180, 1210));
     }
+
+    @Test
+    void anElectionAcrossTwoBandsIsHeldToTheLowerOne() {
+        Elections elections = new Elections();
+        Fields changed = fields();
+        changed.toAge = 14;
+        changed.hourlyTenths = 3500;
+        RateError caught = catchThrowableOfType(RateError.class, () -> elections.file(changed.build(), aSchedule()));
+        assertThat(caught.message()).contains("never more");
+        assertThat(caught.context()).containsEntry("age", 10);
+        changed.hourlyTenths = 3180;
+        elections.file(changed.build(), aSchedule());
+        assertThat(elections.elected(HOPPER, 14, DAY)).contains(3180L);
+    }
+
+    @Test
+    void anElectionReadsItsAgesAsARange() {
+        assertThat(anElection().ages()).isEqualTo(new AgeRange(0, 9));
+        assertThat(anElection().coversAge(9)).isTrue();
+        assertThat(anElection().coversAge(10)).isFalse();
+    }
 }
