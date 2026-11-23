@@ -4,7 +4,6 @@ import io.github.rkaushikdev.drawbarline.measure.Length;
 import io.github.rkaushikdev.drawbarline.mileage.Mileage;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,13 +17,14 @@ import java.util.Objects;
  * railroad and it is why nothing over plate F goes north of Powers; the Wallace highway bridge is
  * the narrow place, and a route is governed by both, each at its own place. A load that clears a
  * place by less than {@link #CLOSE_MARGIN} still goes, slowly. A station with nothing filed reads
- * as open.
+ * as open. The readings here are off the valuation maps; a clearance filed since then is on a
+ * {@link ClearanceChart}, which reads every route as of a day.
  */
 public record Clearance(String station, Length overhead, Length side, String what) {
 
     /**
      * Off the valuation maps. Bark River is the governing overhead on the main and the highway
-     * bridge at Wallace is the narrow one.
+     * bridge at Wallace is the narrow one. Later filings are on a {@link ClearanceChart}.
      */
     public static final Map<String, Clearance> CHART = chart();
 
@@ -89,67 +89,34 @@ public record Clearance(String station, Length overhead, Length side, String wha
         return station + where + " " + overhead + " over " + side + " wide";
     }
 
-    /** The governing clearance at a station, which is open where nothing is filed. */
+    /** The governing clearance at a station on the valuation maps, which is open where nothing is filed. */
     public static Clearance clearanceAt(String station) {
-        Mileage.milepost(station);
-        Clearance found = CHART.get(station);
-        if (found == null) {
-            return new Clearance(station, OPEN.overhead, OPEN.side, OPEN.what);
-        }
-        return found;
+        return ClearanceChart.VALUATION.at(station, ClearanceChart.VALUATION_DATE);
     }
 
-    /** The governing clearance at every place on a route, in route order, refusing an empty route. */
+    /** The governing clearance at every place on a route on the valuation maps, in route order. */
     public static List<Clearance> along(List<String> route) {
-        if (route.isEmpty()) {
-            throw new ClearanceError("a route has at least one place");
-        }
-        return route.stream().map(Clearance::clearanceAt).toList();
+        return ClearanceChart.VALUATION.along(route, ClearanceChart.VALUATION_DATE);
     }
 
     /** The place on a route that governs the height of a load, which is the lowest overhead. */
     public static Clearance tightestOn(List<String> route) {
-        return governing(route, Comparator.comparing(Clearance::overhead));
+        return ClearanceChart.VALUATION.tightestOn(route, ClearanceChart.VALUATION_DATE);
     }
 
-    /**
-     * The place on a route that governs the width of a load, which is the narrowest side clearance.
-     * It is seldom the place with the low overhead: Bark River is low and Wallace is narrow, and a
-     * wide load measured against Bark River alone has been sent into the Wallace bridge before.
-     */
+    /** The place on a route that governs the width of a load, which is the narrowest side clearance. */
     public static Clearance narrowestOn(List<String> route) {
-        return governing(route, Comparator.comparing(Clearance::side));
-    }
-
-    /** The first place on a route that is least by a measure, so a tie goes to the place reached first. */
-    private static Clearance governing(List<String> route, Comparator<Clearance> least) {
-        List<Clearance> places = along(route);
-        Clearance found = places.get(0);
-        for (Clearance here : places) {
-            if (least.compare(here, found) < 0) {
-                found = here;
-            }
-        }
-        return found;
+        return ClearanceChart.VALUATION.narrowestOn(route, ClearanceChart.VALUATION_DATE);
     }
 
     /** Every place on a route the load will not clear, overhead and side reported separately. */
     public static List<String> checkRoute(Dimensions load, List<String> route) {
-        return along(route).stream()
-                .flatMap(place -> place.shortfalls(load).stream())
-                .toList();
+        return ClearanceChart.VALUATION.checkRoute(load, route, ClearanceChart.VALUATION_DATE);
     }
 
-    /**
-     * The places on a route a load clears by less than the margin, in route order: where the train
-     * slows to restricted speed and a man rides the car through. A place the load does not clear at
-     * all is a refusal for {@link #checkRoute}, not a slow order.
-     */
+    /** The places on a route a load clears by less than the margin: where the train slows. */
     public static List<String> slowOrders(Dimensions load, List<String> route) {
-        return along(route).stream()
-                .filter(place -> place.close(load))
-                .map(place -> place + ", restricted speed")
-                .toList();
+        return ClearanceChart.VALUATION.slowOrders(load, route, ClearanceChart.VALUATION_DATE);
     }
 
     /** Whether a load clears every place on a route. */
