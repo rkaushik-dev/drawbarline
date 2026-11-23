@@ -3,11 +3,10 @@ package io.github.rkaushikdev.drawbarline.days;
 import io.github.rkaushikdev.drawbarline.Details;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.temporal.TemporalAdjusters;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * The calendar the tariff counts on.
@@ -17,10 +16,10 @@ import java.util.Optional;
  * time is quoted in chargeable days.
  *
  * <p>The holidays are computed rather than tabled, so nobody has to remember to extend a table
- * every December. The observance rule is the ordinary federal one: a holiday landing on a Saturday
- * is kept the Friday before, and one landing on a Sunday the Monday after. The chargeable day
- * readings here are the standard calendar's; days the road declares closed are on a {@link
- * TariffCalendar}.
+ * every December: each is a {@link HolidayRule}. The observance rule for the fixed date ones is the
+ * ordinary federal one: a holiday landing on a Saturday is kept the Friday before, and one landing
+ * on a Sunday the Monday after. The readings here are the standard tariff's; the holidays another
+ * tariff adds, and days the road declares closed, are on a {@link TariffCalendar}.
  */
 public final class Days {
 
@@ -35,39 +34,30 @@ public final class Days {
         };
     }
 
-    /** The six days this tariff recognises, in the order they are kept. */
+    /** The six days the standard tariff recognises, in the order they are kept. */
     public static List<Holiday> holidays(int year) {
+        return holidays(year, HolidayRule.STANDARD);
+    }
+
+    /** The holidays a tariff recognises in a year, in the order they are kept. */
+    public static List<Holiday> holidays(int year, Set<HolidayRule> recognised) {
         if (year < 1900 || year > 2200) {
             throw new CalendarError("that year is outside anything we settle", Details.of("year", year));
         }
-        List<Holiday> found = new ArrayList<>();
-        fixed(found, "new year", LocalDate.of(year, 1, 1));
-        fixed(found, "independence day", LocalDate.of(year, 7, 4));
-        fixed(found, "christmas", LocalDate.of(year, 12, 25));
-        moving(found, "memorial day", LocalDate.of(year, 5, 1).with(TemporalAdjusters.lastInMonth(DayOfWeek.MONDAY)));
-        moving(
-                found,
-                "labor day",
-                LocalDate.of(year, 9, 1).with(TemporalAdjusters.dayOfWeekInMonth(1, DayOfWeek.MONDAY)));
-        moving(
-                found,
-                "thanksgiving",
-                LocalDate.of(year, 11, 1).with(TemporalAdjusters.dayOfWeekInMonth(4, DayOfWeek.THURSDAY)));
-        found.sort(Comparator.comparing(Holiday::kept));
-        return List.copyOf(found);
-    }
-
-    private static void fixed(List<Holiday> into, String name, LocalDate falls) {
-        into.add(new Holiday(name, falls, observed(falls)));
-    }
-
-    private static void moving(List<Holiday> into, String name, LocalDate falls) {
-        into.add(new Holiday(name, falls, falls));
+        return recognised.stream()
+                .map(rule -> rule.in(year))
+                .sorted(Comparator.comparing(Holiday::kept))
+                .toList();
     }
 
     /** The holiday kept on a day, if any. */
     public static Optional<Holiday> holidayOn(LocalDate day) {
-        return holidays(day.getYear()).stream()
+        return holidayOn(day, HolidayRule.STANDARD);
+    }
+
+    /** The holiday a tariff recognises kept on a day, if any. */
+    public static Optional<Holiday> holidayOn(LocalDate day, Set<HolidayRule> recognised) {
+        return holidays(day.getYear(), recognised).stream()
                 .filter(one -> one.kept().equals(day))
                 .findFirst();
     }

@@ -4,13 +4,15 @@ import io.github.rkaushikdev.drawbarline.Details;
 import io.github.rkaushikdev.drawbarline.util.Text;
 import java.time.LocalDate;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeMap;
 
 /**
- * The days a demurrage clock runs on: every day but a Saturday, a Sunday, one of the six holidays,
- * and any day the road has declared closed.
+ * The days a demurrage clock runs on: every day but a Saturday, a Sunday, a holiday the tariff
+ * recognises, and any day the road has declared closed.
  *
  * <p>The declared days are the ones nobody can put in a table. When a blizzard shuts the
  * Escanaba yard for two days the road declares an emergency, and a customer whose track is under
@@ -19,17 +21,37 @@ import java.util.TreeMap;
  * disputes it by day.
  *
  * <p>A calendar is never changed in place. Declaring a day gives back a new calendar, so {@link
- * #STANDARD} is the six holidays and the weekends and nothing else, always.
+ * #STANDARD} is the six holidays and the weekends and nothing else, always. A tariff that publishes
+ * more holidays is the standard calendar {@link #recognising} them.
  */
 public final class TariffCalendar {
 
     /** The weekends and the six holidays, with nothing declared. */
-    public static final TariffCalendar STANDARD = new TariffCalendar(Map.of());
+    public static final TariffCalendar STANDARD = new TariffCalendar(HolidayRule.STANDARD, Map.of());
 
+    private final Set<HolidayRule> holidays;
     private final Map<LocalDate, String> declared;
 
-    private TariffCalendar(Map<LocalDate, String> declared) {
+    private TariffCalendar(Set<HolidayRule> holidays, Map<LocalDate, String> declared) {
+        this.holidays = Collections.unmodifiableSet(EnumSet.copyOf(holidays));
         this.declared = Collections.unmodifiableMap(new TreeMap<>(declared));
+    }
+
+    /** This calendar with one more holiday the tariff publishes. */
+    public TariffCalendar recognising(HolidayRule holiday) {
+        Set<HolidayRule> next = EnumSet.copyOf(holidays);
+        next.add(holiday);
+        return new TariffCalendar(next, declared);
+    }
+
+    /** The holidays the tariff recognises. */
+    public Set<HolidayRule> holidays() {
+        return holidays;
+    }
+
+    /** The holiday the tariff recognises kept on a day, if any. */
+    public Optional<Holiday> holidayOn(LocalDate day) {
+        return Days.holidayOn(day, holidays);
     }
 
     /** This calendar with one more day declared closed, refusing a day declared twice. */
@@ -42,7 +64,7 @@ public final class TariffCalendar {
         }
         Map<LocalDate, String> next = new TreeMap<>(declared);
         next.put(day, reason);
-        return new TariffCalendar(next);
+        return new TariffCalendar(holidays, next);
     }
 
     /** Every declared day and its reason, in date order. */
@@ -57,7 +79,7 @@ public final class TariffCalendar {
 
     /** A day demurrage may be charged for. */
     public boolean isChargeable(LocalDate day) {
-        return !Days.isWeekend(day) && !Days.isHoliday(day) && !declared.containsKey(day);
+        return !Days.isWeekend(day) && holidayOn(day).isEmpty() && !declared.containsKey(day);
     }
 
     /** How many chargeable days there are from one day to another, both ends counted. */
