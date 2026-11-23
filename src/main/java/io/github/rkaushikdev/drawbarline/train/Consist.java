@@ -1,11 +1,13 @@
 package io.github.rkaushikdev.drawbarline.train;
 
 import io.github.rkaushikdev.drawbarline.Details;
+import io.github.rkaushikdev.drawbarline.hazmat.Standing;
 import io.github.rkaushikdev.drawbarline.marks.CarMark;
 import io.github.rkaushikdev.drawbarline.measure.Length;
 import io.github.rkaushikdev.drawbarline.util.Text;
 import io.github.rkaushikdev.drawbarline.weight.Weight;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -60,6 +62,15 @@ public record Consist(String symbol, LocalDate day, List<Position> positions) {
     /** Trailing tons, rounded down the way a tonnage rating is read. */
     public long tons() {
         return Math.floorDiv(weight().pounds(), Weight.POUNDS_PER_TON);
+    }
+
+    /** Every car as the placard rules read it, head end first, counted from one. */
+    public List<Standing> standings() {
+        List<Standing> found = new ArrayList<>();
+        for (int at = 0; at < positions.size(); at++) {
+            found.add(positions.get(at).standing(at + 1));
+        }
+        return List.copyOf(found);
     }
 
     /** Over the pulling faces, with the slack at every coupling counted. */

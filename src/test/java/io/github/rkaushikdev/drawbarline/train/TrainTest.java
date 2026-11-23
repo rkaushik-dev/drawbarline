@@ -1,5 +1,6 @@
 package io.github.rkaushikdev.drawbarline.train;
 
+import static io.github.rkaushikdev.drawbarline.lading.Commodity.SODIUM_HYDROXIDE;
 import static io.github.rkaushikdev.drawbarline.lading.Commodity.WHEAT;
 import static io.github.rkaushikdev.drawbarline.support.Cars.aCar;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -7,6 +8,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.rkaushikdev.drawbarline.api.Errors;
 import io.github.rkaushikdev.drawbarline.fleet.Car;
+import io.github.rkaushikdev.drawbarline.hazmat.HazardClass;
+import io.github.rkaushikdev.drawbarline.hazmat.Placard;
+import io.github.rkaushikdev.drawbarline.hazmat.Standing;
 import io.github.rkaushikdev.drawbarline.lading.Lading;
 import io.github.rkaushikdev.drawbarline.marks.CarMark;
 import io.github.rkaushikdev.drawbarline.measure.Length;
@@ -263,5 +267,61 @@ class TrainTest {
     void aPositionReadsItsTonsDown() {
         assertThat(grossing("CN 400100", 263999).tons()).isEqualTo(131);
         assertThat(new Position(aCar("CN 400100")).tons()).isEqualTo(31);
+    }
+
+    static final Placard CAUSTIC = new Placard(HazardClass.CORROSIVE, 1824, "sodium hydroxide solution");
+    static final Lading LYE = new Lading(SODIUM_HYDROXIDE, new Weight(180000));
+
+    /** A train of so many plain hoppers with a placarded tank at one place. */
+    static Consist withTankAt(int cars, int at) {
+        List<Position> positions = new ArrayList<>();
+        for (int place = 1; place <= cars; place++) {
+            Car car = aCar("CN " + (400100 + place));
+            positions.add(place == at ? new Position(car, LYE, CAUSTIC) : new Position(car, GRAIN));
+        }
+        return new Consist("L51", DAY, positions);
+    }
+
+    @Test
+    void aHazardousLoadTravelsUnderAPlacard() {
+        assertThatThrownBy(() -> new Position(aCar("CN 400100"), LYE))
+                .isInstanceOf(ConsistError.class)
+                .hasMessageContaining("under a placard");
+        assertThatThrownBy(() -> new Position(aCar("CN 400100"), GRAIN, CAUSTIC))
+                .isInstanceOf(ConsistError.class)
+                .hasMessageContaining("hazardous load or its residue");
+    }
+
+    @Test
+    void aResidueEmptyKeepsItsPlacard() {
+        Position found = Position.residue(aCar("CN 400100"), CAUSTIC);
+        assertThat(found.loaded()).isFalse();
+        assertThat(found.standing(3)).isEqualTo(new Standing(3, true, HazardClass.CORROSIVE));
+    }
+
+    @Test
+    void theTrainCheckFindsAPlacardTooNearTheEngine() {
+        assertThat(Train.check(withTankAt(8, 3), Train.district(Mileage.MAIN)))
+                .containsExactly(
+                        "position 3 is placarded corrosive and the train has the cars to stand it sixth from the engine");
+        assertThat(Train.check(withTankAt(8, 6), Train.district(Mileage.MAIN))).isEmpty();
+    }
+
+    @Test
+    void theStandingsCountFromTheHeadEnd() {
+        assertThat(withTankAt(3, 2).standings())
+                .extracting(one -> one.position() + " " + one.placarded())
+                .containsExactly("1 false", "2 true", "3 false");
+    }
+
+    @Test
+    void theWheelReportShowsThePlacardsAndCountsThem() {
+        List<String> lines = Train.wheelReport(withTankAt(3, 2));
+        assertThat(lines)
+                .anySatisfy(line -> assertThat(line).contains("CN 400102").contains("UN1824 class 8"));
+        assertThat(lines).anySatisfy(line -> assertThat(line).contains("1 placarded"));
+        List<String> residue =
+                Train.wheelReport(new Consist("L51", DAY, List.of(Position.residue(aCar("CN 400100"), CAUSTIC))));
+        assertThat(residue).anySatisfy(line -> assertThat(line).contains("UN1824 class 8 residue"));
     }
 }

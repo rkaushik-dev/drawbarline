@@ -1,12 +1,10 @@
 package io.github.rkaushikdev.drawbarline.train;
 
 import io.github.rkaushikdev.drawbarline.Details;
+import io.github.rkaushikdev.drawbarline.hazmat.Hazmat;
 import io.github.rkaushikdev.drawbarline.measure.Length;
 import io.github.rkaushikdev.drawbarline.mileage.Mileage;
-import io.github.rkaushikdev.drawbarline.reports.Align;
-import io.github.rkaushikdev.drawbarline.reports.Column;
-import io.github.rkaushikdev.drawbarline.reports.Render;
-import io.github.rkaushikdev.drawbarline.reports.Table;
+import io.github.rkaushikdev.drawbarline.reports.WheelReport;
 import io.github.rkaushikdev.drawbarline.weight.NominalCapacity;
 import java.util.ArrayList;
 import java.util.List;
@@ -52,12 +50,16 @@ public final class Train {
         throw new ConsistError("no such district", Details.of("line", line));
     }
 
-    /** Every reason the train cannot leave as it stands: the whole train first, then car by car. */
+    /**
+     * Every reason the train cannot leave as it stands: the whole train first, then car by car,
+     * then where the placarded cars stand.
+     */
     public static List<String> check(Consist consist, District over) {
         List<String> found = new ArrayList<>();
         tonnage(consist, over).ifPresent(found::add);
         length(consist, over).ifPresent(found::add);
         found.addAll(tooHeavy(consist, over));
+        found.addAll(Hazmat.checkStanding(consist.standings()));
         return List.copyOf(found);
     }
 
@@ -93,30 +95,6 @@ public final class Train {
 
     /** The list the conductor carries, head end first, with the train totalled underneath. */
     public static List<String> wheelReport(Consist consist) {
-        Table table = new Table(List.of(
-                new Column("pos", Align.RIGHT),
-                new Column("car"),
-                new Column("lading"),
-                new Column("tons", Align.RIGHT),
-                new Column("length")));
-        int at = 1;
-        for (Position one : consist.positions()) {
-            table.add(
-                    String.valueOf(at++),
-                    one.car().mark().toString(),
-                    one.lading().map(lading -> lading.commodity().name()).orElse("empty"),
-                    String.valueOf(one.tons()),
-                    one.car().outsideLength().toString());
-        }
-        table.total(
-                consist.cars() + " cars",
-                consist.loads() + " loads " + consist.empties() + " empties",
-                "",
-                String.valueOf(consist.tons()),
-                consist.length().toString());
-        List<String> lines = new ArrayList<>(
-                Render.heading("wheel report " + consist.symbol(), consist.day().toString()));
-        lines.addAll(table.lines());
-        return List.copyOf(lines);
+        return WheelReport.of(consist);
     }
 }
